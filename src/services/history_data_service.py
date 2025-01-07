@@ -1,9 +1,7 @@
 from PyQt5.QtCore import QThread, pyqtSignal
-from matplotlib import pyplot as plt
-import numpy as np
-from xtquant.xtdata import get_trading_dates, get_market_data_ex, get_market_data, download_history_data
+from xtquant.xtdata import get_market_data_ex, download_history_data
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 from loguru import logger
 from trading_day_util import TradingDayUtil
 
@@ -12,21 +10,25 @@ class HistoryDataService(QThread):
     data_ready = pyqtSignal(pd.DataFrame)  # 数据准备完成信号
     error_occurred = pyqtSignal(str)  # 错误发生信号
     history_ready = pyqtSignal(pd.DataFrame)  # 历史数据准备完成信号
-    history_init_finished = pyqtSignal(pd.DataFrame, pd.DataFrame)  # 历史数据初始化完成信号
+    history_init_finished = pyqtSignal(dict)  # 历史数据初始化完成信号
     history_daily_amount_ready = pyqtSignal(pd.DataFrame)  # 每日成交量数据准备完成信号
     latest_trading_day_ready = pyqtSignal(str)
     
-    def __init__(self):
+    def __init__(self, symbols=None):
         super().__init__()
         logger.info("开始初始化 HistoryDataService...")
         
         # 线程控制标志
         self._is_running = True
         
-        # 初始化默认订阅的指数列表
+        # 初始化订阅的指数列表
         self.default_symbols = ['000001.SH', '399001.SZ']  # 上证指数和深证成指
-        self.symbols = self.default_symbols.copy()
-        logger.info(f"初始化订阅列表: {self.symbols}")
+        if symbols:
+            self.symbols = list(set(self.default_symbols + symbols))
+            logger.info(f"使用自定义订阅列表: {self.symbols}")
+        else:
+            self.symbols = self.default_symbols.copy()
+            logger.info(f"使用默认订阅列表: {self.symbols}")
         
         # 设置需要获取的数据字段
         self.fields = ["open", "close", "high", "low", "volume", "amount"]
@@ -76,7 +78,7 @@ class HistoryDataService(QThread):
             
             logger.debug(f"获取到的市场数据: {market_data}")
             
-            # 检查每个指数的数据完整性
+            # 检查每个合约的数据完整性
             for symbol, df in market_data.items():
                 logger.info(f"检查指数 {symbol} 的历史数据")
                 logger.debug(f"数据概览:\n头部:\n{df.head()}\n尾部:\n{df.tail()}")
@@ -106,10 +108,7 @@ class HistoryDataService(QThread):
             logger.info("历史数据初始化完成")
             logger.info("准备发送历史数据初始化完成信号")
             
-            # 分别获取上证和深证数据
-            sh_data = market_data['000001.SH']
-            sz_data = market_data['399001.SZ']
-            self.history_init_finished.emit(sh_data, sz_data)
+            self.history_init_finished.emit(self.history_data)
             logger.info("已发送历史数据初始化完成信号")
             
         except Exception as e:
@@ -122,26 +121,24 @@ class HistoryDataService(QThread):
         self.current_date = now.strftime("%Y%m%d")
         logger.info(f"初始化时间范围: current_date={self.current_date}")
 
-    def on_history_init_finished(self, shData: pd.DataFrame, szData: pd.DataFrame):
+    def on_history_init_finished(self, historyData: dict):
         """历史数据初始化完成后的处理
         
         Args:
-            shData (pd.DataFrame): 上证指数数据
-            szData (pd.DataFrame): 深证成指数据
+            historyData (pd.DataFrame): 合约历史数据 {symbol1: pd.DataFrame, symbol2: pd.DataFrame, ...}
         """
         logger.info("接收到历史数据初始化完成信号，开始后续处理...")
         
         # 创建输出数据框
         output_df = pd.DataFrame()
+        for symbol, data in historyData.items():
+            # 合并上证和深证数据，计算总成交量
+            for index, row in data.iterrows():
+                # 将金额转换为亿元单位
+                output_df.loc[index, f'{symbol}_amount'] = row['amount'] / 100000000
+        output_df["sum_amount"] = output_df.sum(axis=1)
 
-        # 合并上证和深证数据，计算总成交量
-        for index, row in shData.iterrows():
-            sh_row = row
-            sz_row = szData.loc[index]
-            # 将金额转换为亿元单位
-            output_df.loc[index, 'totalAmount'] = (sh_row['amount'] + sz_row['amount']) / 100000000
-            output_df.loc[index, 'sh_amount'] = sh_row['amount'] / 100000000
-            output_df.loc[index, 'sz_amount'] = sz_row['amount'] / 100000000
+        logger.info(f"output_df:\n{output_df}")
 
         # 按日期分组
         grouped_df = output_df.groupby(output_df.index.astype(str).str[:8])
@@ -159,7 +156,7 @@ class HistoryDataService(QThread):
 
             rowCount = daily5MinKline.shape[0]
             # 计算统计指标
-            ma5 = []  # 5日均线
+            ave5 = []  # 5日均线
             max5 = []  # 5日最高
             min5 = []  # 5日最低
             
@@ -168,21 +165,21 @@ class HistoryDataService(QThread):
                 maxAmount = 0
                 minAmount = 0
                 for group in groups:
-                    amount = group.iloc[index, 0]  # 已经是亿元单位
+                    amount = group.iloc[index, 2]  # 已经是亿元单位
                     totalAmount += amount
                     if amount > maxAmount:
                         maxAmount = amount
                     if amount < minAmount or minAmount == 0:
                         minAmount = amount
-                ma5.append(round(totalAmount / len(groups), 2))  # 保留两位小数
+                ave5.append(round(totalAmount / len(groups), 2))  # 保留两位小数
                 max5.append(round(maxAmount, 2))
                 min5.append(round(minAmount, 2))
-                logger.info(f"index: {index}, ma5: {ma5[index]}, max5: {max5[index]}, min5: {min5[index]}")
+                logger.info(f"index: {index}, ave5: {ave5[index]}, max5: {max5[index]}, min5: {min5[index]}")
             
             # 添加计算结果到数据框
-            daily5MinKline['MA5'] = ma5
-            daily5MinKline['max5'] = max5
-            daily5MinKline['min5'] = min5
+            daily5MinKline['AVE5'] = ave5
+            daily5MinKline['MAX5'] = max5
+            daily5MinKline['MIN5'] = min5
             output_df = daily5MinKline
             
         logger.info(f"{date} 5m klines:\n{output_df}")

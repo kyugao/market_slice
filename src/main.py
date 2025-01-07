@@ -3,10 +3,12 @@ from PyQt5 import QtWidgets, uic, QtGui, QtCore
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
 from pyecharts import options as opts
 from pyecharts.charts import Line
-from history_data_service import HistoryDataService
-from trading_day_data_service import TradingDayDataService
 import pandas as pd
 from loguru import logger
+
+from widgets.trading_volume_chart_widget import TradingVolumeChartWidget
+from services.history_data_service import HistoryDataService
+from services.trading_day_data_service import TradingDayDataService
 
 # 配置日志
 logger.add("logs/{time:YYYY-MM-DD}_app.log", 
@@ -32,15 +34,6 @@ class MyApp(QtWidgets.QMainWindow):
         # 初始化UI控件
         self.init_ui_controls()
         
-        # 初始化历史数据服务
-        self.history_service = HistoryDataService()
-        self.trading_day_data_service = TradingDayDataService()
-        # 连接信号
-        self.history_service.history_daily_amount_ready.connect(self.on_history_daily_amount_ready)
-        logger.debug("[SIGNAL] Connected: history_daily_amount_ready -> on_history_daily_amount_ready")
-        self.trading_day_data_service.data_ready.connect(self.on_trading_day_data_ready)
-        logger.debug("[SIGNAL] Connected: data_ready -> on_trading_day_data_ready")
-        
         # Connect resize event to update chart size
         self.headerFrame.installEventFilter(self)
         
@@ -48,7 +41,6 @@ class MyApp(QtWidgets.QMainWindow):
         self.line = None
         
         logger.debug("[INIT] 主窗口初始化完成")
-        self.start_data_service()
 
     def init_echarts(self):
         """初始化echarts图表"""
@@ -120,82 +112,16 @@ class MyApp(QtWidgets.QMainWindow):
         """初始化UI控件"""
         logger.debug("[INIT] 开始初始化UI控件...")
 
-    def start_data_service(self):
-        """启动历史数据服务"""
-        logger.debug("[START] Starting background data service...")
-        self.history_service.start()
-        self.trading_day_data_service.start()
-        logger.debug("[START] Background data service started")
-
-    def on_trading_day_data_ready(self, trading_data: pd.DataFrame):
-        logger.debug("[SIGNAL] trading_day_data_ready")
-        # 创建图表
-        chart = self.create_line_chart(
-            times=self.history_data['time'].tolist(),
-            ma5=self.history_data['MA5'].tolist(),
-            max5=self.history_data['max5'].tolist(),
-            min5=self.history_data['min5'].tolist(),
-            today_amount=trading_data['sum_amount'].tolist()
-        )
+        # 创建交易量图表Widget
+        self.volume_chart = TradingVolumeChartWidget()
         
-        # 生成HTML并显示在所有Frame中
-        chart.render("temp_chart.html")
-        # self.update_chart_size()
+        # 获取headerFrame的布局
+        header_layout = self.headerFrame.layout()
         
-        # 获取Frame尺寸
-        frame_size = self.headerFrame.size()
-        chart.width = str(frame_size.width()) + "px"
-        chart.height = str(frame_size.height()) + "px"
+        # 将交易量图表添加到headerFrame布局中
+        header_layout.addWidget(self.volume_chart)
         
-        # 为每个浏览器设置大小并加载图表
-        for browser in self.browsers.values():
-            browser.setMinimumSize(frame_size)
-            browser.setSizePolicy(
-                QtWidgets.QSizePolicy.Expanding,
-                QtWidgets.QSizePolicy.Expanding
-            )
-            browser.load(QtCore.QUrl.fromLocalFile(
-                str(QtCore.QDir.current().absoluteFilePath("temp_chart.html"))
-            ))
-        
-    def on_history_daily_amount_ready(self, history_data: pd.DataFrame):
-        """处理每日成交量数据"""
-        logger.debug("[SIGNAL] Received: history_daily_amount_ready")
-        
-        # 处理数据
-        history_data['time'] = history_data.index.str[8:12]
-        # 将时间格式从hhmm转换为hh:mm
-        history_data['time'] = history_data['time'].apply(lambda x: f"{x[:2]}:{x[2:]}")
-        
-        self.history_data = history_data
-        # 创建图表
-        chart = self.create_line_chart(
-            times=history_data['time'].tolist(),
-            ma5=history_data['MA5'].tolist(),
-            max5=history_data['max5'].tolist(),
-            min5=history_data['min5'].tolist(),
-            today_amount=[]
-        )
-        
-        # 生成HTML并显示在所有Frame中
-        chart.render("temp_chart.html")
-        # self.update_chart_size()
-        
-        # 获取Frame尺寸
-        frame_size = self.headerFrame.size()
-        chart.width = str(frame_size.width()) + "px"
-        chart.height = str(frame_size.height()) + "px"
-        
-        # 为每个浏览器设置大小并加载图表
-        for browser in self.browsers.values():
-            browser.setMinimumSize(frame_size)
-            browser.setSizePolicy(
-                QtWidgets.QSizePolicy.Expanding,
-                QtWidgets.QSizePolicy.Expanding
-            )
-            browser.load(QtCore.QUrl.fromLocalFile(
-                str(QtCore.QDir.current().absoluteFilePath("temp_chart.html"))
-            ))
+        logger.debug("[INIT] 已将交易量图表添加到headerFrame")
 
     def eventFilter(self, source, event):
         """事件过滤器，用于监听大小改变事件"""
