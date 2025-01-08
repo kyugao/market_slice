@@ -68,52 +68,12 @@ class MyApp(QtWidgets.QMainWindow):
             layout_copy.addWidget(browser)
             frame.setLayout(layout_copy)
 
-    def create_line_chart(self, times, ma5, max5, min5, today_amount):
-        """创建折线图"""
-        # 使用原始时间轴和数据,不进行采样
-        line = (
-            Line()
-            .add_xaxis(times)
-            .add_yaxis("MA5", ma5, color="green")  # 使用原始数据
-            .add_yaxis("MAX5", max5, color="red")  # 使用原始数据 
-            .add_yaxis("MIN5", min5, color="blue")  # 使用原始数据
-            .add_yaxis("TODAY", today_amount, color="black")  # 使用原始数据
-            .set_global_opts(
-                title_opts=opts.TitleOpts(
-                    title="5日成交量分时对比",
-                    pos_left="center",
-                    padding=[0, 0, 0, 40]
-                ),
-                xaxis_opts=opts.AxisOpts(
-                    name="时间",
-                    axislabel_opts=opts.LabelOpts()
-                ),
-                yaxis_opts=opts.AxisOpts(
-                    name="成交额(亿元)", 
-                    axislabel_opts=opts.LabelOpts(formatter="{value}"),
-                    position="right"
-                ),
-                legend_opts=opts.LegendOpts(
-                    pos_top="5%",
-                    pos_left="center",
-                    orient="horizontal"
-                ),
-                tooltip_opts=opts.TooltipOpts(
-                    trigger="axis",
-                    formatter="{b} <br/> MA5: {c0}亿元 <br/>MAX5: {c1}亿元 <br/>MIN5: {c2}亿元 <br/>TODAY: {c3}亿元"
-                )
-            )
-            .set_series_opts(label_opts=opts.LabelOpts(is_show=False))
-        )
-        self.line = line
-        return line
-
     def init_ui_controls(self):
         """初始化UI控件"""
         logger.debug("[INIT] 开始初始化UI控件...")
 
         # 创建交易量图表Widget
-        self.volume_chart = TradingVolumeChartWidget()
+        self.volume_chart = TradingVolumeChartWidget(symbols=['000001.SH', '399001.SZ'], title="沪深5m成交量对比")
         
         # 获取headerFrame的布局
         header_layout = self.headerFrame.layout()

@@ -174,7 +174,7 @@ class HistoryDataService(QThread):
                 ave5.append(round(totalAmount / len(groups), 2))  # 保留两位小数
                 max5.append(round(maxAmount, 2))
                 min5.append(round(minAmount, 2))
-                logger.info(f"index: {index}, ave5: {ave5[index]}, max5: {max5[index]}, min5: {min5[index]}")
+                logger.debug(f"index: {index}, ave5: {ave5[index]}, max5: {max5[index]}, min5: {min5[index]}")
             
             # 添加计算结果到数据框
             daily5MinKline['AVE5'] = ave5
@@ -182,7 +182,7 @@ class HistoryDataService(QThread):
             daily5MinKline['MIN5'] = min5
             output_df = daily5MinKline
             
-        logger.info(f"{date} 5m klines:\n{output_df}")
+        logger.debug(f"{date} 5m klines:\n{output_df}")
         logger.debug("[SIGNAL] Emitting history_daily_amount_ready")
         self.history_daily_amount_ready.emit(output_df)
         logger.debug("[SIGNAL] Emitted history_daily_amount_ready")

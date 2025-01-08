@@ -133,7 +133,7 @@ class TradingDayDataService(QThread):
                         )
                         logger.debug(f"[UPDATE] Updated SH amount for {index}: {amount:.2f}")
                 # 转换为亿元单位
-                display_data = self.trading_data.copy()
+                display_data = self.trading_data.where(cond=self.trading_data['sum_amount'] > 0).copy()
                 display_data[['sh_amount', 'sz_amount', 'sum_amount']] = display_data[['sh_amount', 'sz_amount', 'sum_amount']] / 100000000
                 logger.info(f"[UPDATE] 更新交易数据完成(单位:亿元): \n{display_data}")
             # 发出数据更新信号

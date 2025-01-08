@@ -11,17 +11,12 @@ from services.trading_day_data_service import TradingDayDataService
 class TradingVolumeChartWidget(QtWidgets.QWidget):
     """交易量图表Widget"""
     
-    def __init__(self, parent=None, symbols=None):
+    def __init__(self, parent=None, symbols=None, title=None):
         super().__init__(parent)
         logger.debug("[INIT] 开始初始化交易量图表Widget...")
         
-        # 设置大小策略
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Expanding
-        )
-        
         # 初始化订阅的指数列表
+        self.title = title
         self.default_symbols = ['000001.SH', '399001.SZ']  # 上证指数和深证成指
         if symbols:
             self.symbols = list(set(self.default_symbols + symbols))
@@ -29,6 +24,15 @@ class TradingVolumeChartWidget(QtWidgets.QWidget):
         else:
             self.symbols = self.default_symbols.copy()
             logger.info(f"使用默认订阅列表: {self.symbols}")
+        
+        # 设置大小策略
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Expanding
+        )
+        
+        # 设置最小尺寸
+        self.setMinimumSize(200, 150)  # 设置一个合理的最小尺寸
         
         # 创建布局
         self.layout = QtWidgets.QVBoxLayout(self)
@@ -59,6 +63,15 @@ class TradingVolumeChartWidget(QtWidgets.QWidget):
         # 设置背景色
         self.browser.page().setBackgroundColor(QtCore.Qt.white)
         
+        # 设置浏览器的大小策略
+        self.browser.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Expanding
+        )
+        
+        # 设置浏览器的最小尺寸
+        self.browser.setMinimumSize(200, 150)
+        
         # 添加到布局
         self.layout.addWidget(self.browser)
         
@@ -81,14 +94,14 @@ class TradingVolumeChartWidget(QtWidgets.QWidget):
         line = (
             Line()
             .add_xaxis(times)
-            .add_yaxis("AVE5", ave5, color="green")
-            .add_yaxis("MAX5", max5, color="red")
-            .add_yaxis("MIN5", min5, color="blue")
+            .add_yaxis("AVE5", ave5, color="rgba(0, 255, 0, 0.4)", is_symbol_show=False)
+            .add_yaxis("MAX5", max5, color="rgba(255, 0, 0, 0.4)", is_symbol_show=False)  
+            .add_yaxis("MIN5", min5, color="rgba(0, 0, 255, 0.4)", is_symbol_show=False)
             .add_yaxis("TODAY", today_amount, color="black")
             .set_global_opts(
                 title_opts=opts.TitleOpts(
-                    title="5日成交量分时对比",
-                    pos_left="center",
+                    title=self.title,
+                    pos_left="center", 
                     padding=[0, 0, 0, 40]
                 ),
                 xaxis_opts=opts.AxisOpts(
@@ -96,7 +109,7 @@ class TradingVolumeChartWidget(QtWidgets.QWidget):
                     axislabel_opts=opts.LabelOpts()
                 ),
                 yaxis_opts=opts.AxisOpts(
-                    name="成交额(亿元)", 
+                    name="成交额(亿元)",
                     axislabel_opts=opts.LabelOpts(formatter="{value}"),
                     position="right"
                 ),
@@ -194,7 +207,7 @@ class TradingVolumeChartWidget(QtWidgets.QWidget):
     def resizeEvent(self, event):
         """处理大小改变事件"""
         super().resizeEvent(event)
-        logger.debug(f"[RESIZE] Widget大小变化: {self.size()}")
+        # logger.debug(f"[RESIZE] Widget大小变化: {self.size()}")
         self.update_chart_size()
         
     def update_chart_size(self):
@@ -210,7 +223,7 @@ class TradingVolumeChartWidget(QtWidgets.QWidget):
         if getattr(self.line, 'width', None) != current_width or \
            getattr(self.line, 'height', None) != current_height:
             
-            logger.debug(f"[CHART] 更新图表大小: {current_width} x {current_height}")
+            # logger.debug(f"[CHART] 更新图表大小: {current_width} x {current_height}")
             
             # 更新图表大小
             self.line.width = current_width
