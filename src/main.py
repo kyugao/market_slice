@@ -44,29 +44,23 @@ class MyApp(QtWidgets.QMainWindow):
 
     def init_echarts(self):
         """初始化echarts图表"""
-        # 为每个Frame创建WebEngine视图
-        self.browsers = {
-            'first': QWebEngineView(),
-        }
+        # 创建单个WebEngine视图
+        browser = QWebEngineView()
+        self.browsers = {'first': browser}
         
-        # 预先创建布局对象
+        # 直接创建和设置布局
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
+        layout.addWidget(browser)
         
-        # 预先设置WebEngine属性
-        settings = QWebEngineSettings.defaultSettings()
+        # 一次性设置WebEngine属性
+        settings = browser.settings()
         settings.setAttribute(QWebEngineSettings.ShowScrollBars, False)
         
-        # 为每个Frame设置布局并禁用滚动条
-        for frame, browser in zip([self.headerFrame], 
-                                self.browsers.values()):
-            browser.page().setBackgroundColor(QtCore.Qt.white)
-            layout_copy = QtWidgets.QVBoxLayout()
-            layout_copy.setContentsMargins(0, 0, 0, 0)
-            layout_copy.setSpacing(0)
-            layout_copy.addWidget(browser)
-            frame.setLayout(layout_copy)
+        # 设置背景色和布局
+        browser.page().setBackgroundColor(QtCore.Qt.white)
+        self.headerFrame.setLayout(layout)
 
     def init_ui_controls(self):
         """初始化UI控件"""
