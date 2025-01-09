@@ -1,5 +1,5 @@
+from typing import Callable
 from adata import stock
-
 # concept_list result sample
 # 	concept_code	index_code	name	source
 # 0	BK0623	BK0623	海洋经济	东方财富
@@ -9,3 +9,4 @@ from adata import stock
 def concept_list():
     df = stock.info.all_concept_code_east()
     return df
+

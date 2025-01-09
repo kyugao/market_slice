@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime
 from loguru import logger
-from trading_day_util import TradingDayUtil
+from utils.trading_day_util import TradingDayUtil
 
 class TestTradingDayUtil(unittest.TestCase):
     """交易日期工具类测试"""

@@ -5,7 +5,7 @@ from pathlib import Path
 project_root = str(Path(__file__).parent.parent)
 if project_root not in sys.path:
     sys.path.append(project_root)
-from src.widgets.trading_volume_chart_widget import TradingVolumeChartWidget
+from widgets.index_trading_volume_chart_widget import IndexTradingVolumeChartWidget
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -19,7 +19,7 @@ class MainWindow(QtWidgets.QMainWindow):
         layout = QtWidgets.QVBoxLayout(central_widget)
         
         # 创建并添加交易量图表Widget
-        self.volume_chart = TradingVolumeChartWidget()
+        self.volume_chart = IndexTradingVolumeChartWidget()
         layout.addWidget(self.volume_chart)
 
 def main():

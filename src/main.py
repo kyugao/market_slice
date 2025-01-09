@@ -6,10 +6,9 @@ from pyecharts.charts import Line
 import pandas as pd
 from loguru import logger
 
-from services.concept_list_data_service import concept_list
-from widgets.trading_volume_chart_widget import TradingVolumeChartWidget
-from services.history_data_service import HistoryDataService
-from services.trading_day_data_service import TradingDayDataService
+from services.contract_list_data_service import concept_list
+from widgets.contract_trading_volume_chart_widget import ContractTradingVolumeChartWidget
+from widgets.index_trading_volume_chart_widget import IndexTradingVolumeChartWidget
 
 # 配置日志
 logger.add("logs/{time:YYYY-MM-DD}_app.log", 
@@ -37,6 +36,7 @@ class MyApp(QtWidgets.QMainWindow):
         
         # Connect resize event to update chart size
         self.headerFrame.installEventFilter(self)
+        self.mainLeftFrame.installEventFilter(self)
         
         # Initialize line attribute
         self.line = None
@@ -44,10 +44,11 @@ class MyApp(QtWidgets.QMainWindow):
         logger.debug("[INIT] 主窗口初始化完成")
 
     def init_echarts(self):
-        """初始化echarts图表"""
+        """初始化index_echarts图表"""
         # 创建单个WebEngine视图
         browser = QWebEngineView()
-        self.browsers = {'first': browser}
+        browser2 = QWebEngineView()
+        self.browsers = {'headerChart': browser, "mainleftChart": browser2}
         
         # 直接创建和设置布局
         layout = QtWidgets.QVBoxLayout()
@@ -62,21 +63,48 @@ class MyApp(QtWidgets.QMainWindow):
         # 设置背景色和布局
         browser.page().setBackgroundColor(QtCore.Qt.white)
         self.headerFrame.setLayout(layout)
+        
+        # 直接创建和设置布局
+        layout2 = QtWidgets.QVBoxLayout()
+        layout2.setContentsMargins(0, 0, 0, 0)
+        layout2.setSpacing(0)
+        layout2.addWidget(browser)
+        
+        # 一次性设置WebEngine属性
+        settings2 = browser2.settings()
+        settings2.setAttribute(QWebEngineSettings.ShowScrollBars, False)
+        
+        # 设置背景色和布局
+        browser2.page().setBackgroundColor(QtCore.Qt.white)
+        self.mainLeftFrame.setLayout(layout2)
+
 
     def init_ui_controls(self):
         """初始化UI控件"""
         logger.debug("[INIT] 开始初始化UI控件...")
 
         # 创建交易量图表Widget
-        self.volume_chart = TradingVolumeChartWidget(symbols=['000001.SH', '399001.SZ'], title="沪深5m成交量对比")
+        self.index_chart = IndexTradingVolumeChartWidget()
         
         # 获取headerFrame的布局
         header_layout = self.headerFrame.layout()
         
         # 将交易量图表添加到headerFrame布局中
-        header_layout.addWidget(self.volume_chart)
+        header_layout.addWidget(self.index_chart)
         
-        logger.debug("[INIT] 已将交易量图表添加到headerFrame")
+        logger.debug("[INIT] 已将指数交易量图表添加到headerFrame")
+
+
+        # 创建交易量图表Widget
+        self.mainLeftChart = ContractTradingVolumeChartWidget(symbol='BK0900')
+        
+        # 获取headerFrame的布局
+        mainLeft_layout = self.mainLeftFrame.layout()
+        
+        # 将交易量图表添加到headerFrame布局中
+        mainLeft_layout.addWidget(self.mainLeftChart)
+        
+        logger.debug("[INIT] 已将个股交易量图表添加到mainLeft_layout")
 
         # 调用concept_list方法获取概念列表
         concept_data = concept_list()
@@ -96,32 +124,17 @@ class MyApp(QtWidgets.QMainWindow):
         
         logger.debug("[INIT] 已初始化tableView并设置数据模型")
 
-    def eventFilter(self, source, event):
-        """事件过滤器，用于监听大小改变事件"""
-        if event.type() == QtCore.QEvent.Resize and source is self.headerFrame:
-            self.update_chart_size()
-        return super().eventFilter(source, event)
-
-    def update_chart_size(self):
-        """更新图表大小"""
-        if self.line is None:
-            return
-            
-        frame_size = self.headerFrame.size()
-        current_width = f"{frame_size.width()}px"
-        current_height = f"{frame_size.height()}px"
-        
-        if self.line.width != current_width or self.line.height != current_height:
-            self.line.width = current_width
-            self.line.height = current_height
-            self.line.render("temp_chart.html")
-            
-            file_path = QtCore.QDir.current().absoluteFilePath("temp_chart.html")
-            url = QtCore.QUrl.fromLocalFile(str(file_path))
-            
-            for browser in self.browsers.values():
-                browser.setMinimumSize(frame_size)
-                browser.load(url)
+    # def eventFilter(self, source, event):
+    #     logger.debug(f"[EVENT] 事件类型: {event.type()}, {QtCore.QEvent.Resize}")
+    #     """事件过滤器，用于监听大小改变事件"""
+    #     # if event.type() == QtCore.QEvent.Resize:
+    #     #     if source is self.headerFrame:
+    #     #         self.index_chart.resizeEvent(event)
+    #     #         # self.update_header_chart_size()
+    #     #     if source is self.mainLeftFrame:
+    #     #         self.mainLeftChart.resizeEvent(event)
+    #         # self.update_mainleft_chart_size()
+    #     return super().eventFilter(source, event)
 
 # 程序入口
 def main():
