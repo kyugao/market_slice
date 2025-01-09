@@ -11,7 +11,7 @@ from services.trading_day_data_service import TradingDayDataService
 class TradingVolumeChartWidget(QtWidgets.QWidget):
     """交易量图表Widget"""
     
-    def __init__(self, parent=None, symbols=None, title=None):
+    def __init__(self, parent=None, symbols=None, title=None, history_data_service=None, trading_day_service=None):
         super().__init__(parent)
         logger.debug("[INIT] 开始初始化交易量图表Widget...")
         

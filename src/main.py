@@ -6,6 +6,7 @@ from pyecharts.charts import Line
 import pandas as pd
 from loguru import logger
 
+from services.concept_list_data_service import concept_list
 from widgets.trading_volume_chart_widget import TradingVolumeChartWidget
 from services.history_data_service import HistoryDataService
 from services.trading_day_data_service import TradingDayDataService
@@ -76,6 +77,24 @@ class MyApp(QtWidgets.QMainWindow):
         header_layout.addWidget(self.volume_chart)
         
         logger.debug("[INIT] 已将交易量图表添加到headerFrame")
+
+        # 调用concept_list方法获取概念列表
+        concept_data = concept_list()
+        logger.debug(f"[INIT] 获取到的概念列表数据：{concept_data}")
+        
+        # 将数据转换为适合QTableView显示的格式
+        model = QtGui.QStandardItemModel()
+        model.setHorizontalHeaderLabels(['概念代码', '概念名称'])
+        for index, row in concept_data.iterrows():
+            model.appendRow([
+                QtGui.QStandardItem(row['concept_code']),
+                QtGui.QStandardItem(row['name']),
+            ])
+        
+        # 初始化tableView并设置数据模型
+        self.tableView.setModel(model)
+        
+        logger.debug("[INIT] 已初始化tableView并设置数据模型")
 
     def eventFilter(self, source, event):
         """事件过滤器，用于监听大小改变事件"""
