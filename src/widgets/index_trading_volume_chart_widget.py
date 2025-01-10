@@ -23,7 +23,6 @@ class IndexTradingVolumeChartWidget(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         logger.debug("[INIT] 开始初始化指数5m交易量图表...")
-        
         # 设置大小策略
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
@@ -40,6 +39,7 @@ class IndexTradingVolumeChartWidget(QtWidgets.QWidget):
         
         # 初始化图表
         self.init_chart()
+        
         
         # 初始化数据服务
         self.init_services()
@@ -82,7 +82,7 @@ class IndexTradingVolumeChartWidget(QtWidgets.QWidget):
         
         # 连接信号
         self.history_service.history_daily_amount_ready.connect(self.on_history_daily_amount_ready)
-        self.trading_day_service.connect(self.on_trading_day_data_ready)
+        self.trading_day_service.data_update_signal.connect(self.on_trading_day_data_ready)
         # 启动服务
         self.history_service.start()
         self.trading_day_service.start()
@@ -130,15 +130,15 @@ class IndexTradingVolumeChartWidget(QtWidgets.QWidget):
         """处理历史数据就绪信号"""
         logger.debug("[SIGNAL] Received: history_daily_amount_ready")
         self.history_data = history_data
-        self.update_chart([])  # 初始显示时today_amount为空列表
+        self.update_chart()  # 初始显示时today_amount为空列表
         
     def on_trading_day_data_ready(self, trading_data: pd.DataFrame):
         """处理实时数据就绪信号"""
         logger.debug("[SIGNAL] Received: trading_day_data_ready")
-        if self.history_data is not None:
-            self.update_chart(trading_data['sum_amount'].tolist())
+        self.latest_trading_day_data = trading_data['sum_amount'].tolist()
+        self.update_chart()
             
-    def update_chart(self, today_amount):
+    def update_chart(self):
         """更新图表"""
         if self.history_data is None:
             return
@@ -149,7 +149,7 @@ class IndexTradingVolumeChartWidget(QtWidgets.QWidget):
             ave5=self.history_data['AVE5'].tolist(),
             max5=self.history_data['MAX5'].tolist(),
             min5=self.history_data['MIN5'].tolist(),
-            today_amount=today_amount
+            today_amount=self.latest_trading_day_data
         )
         
         # 设置图表大小
@@ -200,36 +200,6 @@ class IndexTradingVolumeChartWidget(QtWidgets.QWidget):
             
             # 更新浏览器大小
             self.browser.setMinimumSize(size)
-            
-    def update_chart(self, today_amount):
-        """更新图表"""
-        if self.history_data is None:
-            return
-            
-        # 创建图表
-        chart = self.create_line_chart(
-            times=self.history_data.index.str[8:12].tolist(),
-            ave5=self.history_data['AVE5'].tolist(),
-            max5=self.history_data['MAX5'].tolist(),
-            min5=self.history_data['MIN5'].tolist(),
-            today_amount=today_amount
-        )
-        
-        # 设置图表大小
-        size = self.size()
-        chart.width = f"{size.width()}px"
-        chart.height = f"{size.height()}px"
-        
-        # 保存图表引用
-        self.line = chart
-        
-        # 渲染图表
-        chart.render("temp_chart.html")
-        self.browser.load(QtCore.QUrl.fromLocalFile(
-            str(QtCore.QDir.current().absoluteFilePath("temp_chart.html"))
-        )) 
-
-
 
 class HistoryDataService(QThread):
     # 定义信号用于线程间通信
@@ -364,7 +334,7 @@ class HistoryDataService(QThread):
                 output_df.loc[index, f'{symbol}_amount'] = row['amount'] / 100000000
         output_df["sum_amount"] = output_df.sum(axis=1)
 
-        logger.info(f"output_df:\n{output_df}")
+        logger.info(f"output_df:\n{output_df.sample()}")
 
         # 按日期分组
         grouped_df = output_df.groupby(output_df.index.astype(str).str[:8])
@@ -408,7 +378,7 @@ class HistoryDataService(QThread):
             daily5MinKline['MIN5'] = min5
             output_df = daily5MinKline
             
-        logger.debug(f"{date} 5m klines:\n{output_df}")
+        logger.debug(f"{date} 5m klines:\n{output_df.sample()}")
         logger.debug("[SIGNAL] Emitting history_daily_amount_ready")
         self.history_daily_amount_ready.emit(output_df)
         logger.debug("[SIGNAL] Emitted history_daily_amount_ready")
@@ -424,7 +394,6 @@ class TradingDayDataService(QThread):
                                        如果为None，则使用当前日期。
         """
         super().__init__()
-        logger.debug("[INIT] TradingDayDataService starting...")
         
         # 设置交易日期
         self.trading_day = TradingDayUtil.get_latest_trading_day()
@@ -442,9 +411,6 @@ class TradingDayDataService(QThread):
         # 初始化数据为0
         self.trading_data.fillna(0.0, inplace=True)
         
-        logger.debug(f"[INIT] Created trading data frame with shape: {self.trading_data.shape}")
-        logger.debug(f"[INIT] Trading data sample: \n{self.trading_data}")
-        
         self._is_running = True
         self.symbols = ['000001.SH', '399001.SZ']  # 默认订阅的指数
         self.fields = ["amount"]
@@ -455,25 +421,21 @@ class TradingDayDataService(QThread):
     error_occurred = pyqtSignal(str)
     data_update = "data_update"
     data_update_signal = pyqtSignal(pd.DataFrame)
-    def connect(self, slot: Callable) -> bool:
-        """连接信号到槽函数"""
-        self.data_update_signal.connect(slot)
     
     def emit(self, *args, **kwargs):
         """发射信号"""
         self.data_update_signal.emit(*args, **kwargs)
+        logger.debug("[SIGNAL] 已发出数据更新信号")
 
     def run(self):
         logger.debug("[THREAD] TradingDayDataService thread started")
         self.update_trading_data()
-        logger.debug("[THREAD] TradingDayDataService retrieve trading data at first time")
         # 时间索引%H%M%S
         while self._is_running:
             try:
                 # 获取当前时间
                 current_time = datetime.now()
                 current_time_str = current_time.strftime("%H%M%S")
-                logger.debug(f"[THREAD] 当前时间: {current_time_str}")
                 
                 # 找到下一个需要执行的时间点
                 next_time = None
@@ -526,15 +488,13 @@ class TradingDayDataService(QThread):
             )
             # 初始化交易数据
             for symbol, df in latest_5m_trading_data.items():
-                logger.info(f"[INIT] 初始化交易数据: {symbol}\n{df}")
+                # logger.info(f"[INIT] 初始化交易数据: {symbol}\n{df}")
                 field = 'sh_amount' if symbol == '000001.SH' else 'sz_amount'
                 # 遍历每个时间点的数据
                 for index, row in df.iterrows():
                     current_time = datetime.now().strftime("%H%M%S")
-                    logger.debug(f"[UPDATE] 当前时间: {current_time}, 数据时间点: {index[-6:]}")
                     # 如果数据时间点大于当前时间,则跳出循环
                     if index[-6:] > current_time:
-                        logger.debug(f"[UPDATE] 数据时间点 {index[-6:]} 大于当前时间 {current_time}, 跳过更新")
                         break
                     # 去掉末尾秒值
                     index = index[:-2] if len(index) > 12 else index
@@ -547,14 +507,13 @@ class TradingDayDataService(QThread):
                             self.trading_data.loc[index, 'sh_amount'] + 
                             self.trading_data.loc[index, 'sz_amount']
                         )
-                        logger.debug(f"[UPDATE] Updated SH amount for {index}: {amount:.2f}")
                 # 转换为亿元单位
                 display_data = self.trading_data.where(cond=self.trading_data['sum_amount'] > 0).copy()
                 display_data[['sh_amount', 'sz_amount', 'sum_amount']] = display_data[['sh_amount', 'sz_amount', 'sum_amount']] / 100000000
-                logger.info(f"[UPDATE] 更新交易数据完成(单位:亿元): \n{display_data}")
+                # logger.info(f"[UPDATE] 更新交易数据完成(单位:亿元): \n{display_data}")
             # 发出数据更新信号
             self.emit(display_data)
-            logger.debug("[SIGNAL] 已发出数据更新信号")
+            logger.debug(f"[SIGNAL] 已发出数据更新信号")
         except Exception as e:
             logger.exception("[ERROR] Thread execution failed")
             self.error_occurred.emit(f"线程执行失败: {str(e)}") 

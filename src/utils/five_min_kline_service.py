@@ -25,4 +25,10 @@ def five_min_amount_latest(code: str):
     # print(f"获取到的五分钟K线数据：{res_json}")
     result = pd.DataFrame(item.split(',') for item in res_json['data']['klines'])
     result.columns = ['trade_time', 'volume', 'amount']
+    result.set_index('trade_time', inplace=True)
+    # 获取最后一天的日期
+    last_date = result.index.str[:10].max()
+    # 筛选最后一天的数据
+    result = result[result.index.str[:10] == last_date]
+    logger.debug(f"[DEBUG] 获取到的五分钟K线数据: \n{result}")
     return result

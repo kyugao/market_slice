@@ -96,7 +96,7 @@ class MyApp(QtWidgets.QMainWindow):
 
 
         # 创建交易量图表Widget
-        self.mainLeftChart = ContractTradingVolumeChartWidget(symbol='BK0900')
+        self.mainLeftChart = ContractTradingVolumeChartWidget(symbol='BK1184')
         
         # 获取headerFrame的布局
         mainLeft_layout = self.mainLeftFrame.layout()
