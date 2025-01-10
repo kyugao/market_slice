@@ -77,8 +77,8 @@ class IndexTradingVolumeChartWidget(QtWidgets.QWidget):
     def init_services(self):
         """初始化数据服务"""
         # 创建服务实例
-        self.history_service = HistoryDataService(symbols=self.symbols)
-        self.trading_day_service = TradingDayDataService()
+        self.history_service = IndexHistoryDataService(symbols=self.symbols)
+        self.trading_day_service = IndexTradingDayDataService()
         
         # 连接信号
         self.history_service.history_daily_amount_ready.connect(self.on_history_daily_amount_ready)
@@ -201,7 +201,7 @@ class IndexTradingVolumeChartWidget(QtWidgets.QWidget):
             # 更新浏览器大小
             self.browser.setMinimumSize(size)
 
-class HistoryDataService(QThread):
+class IndexHistoryDataService(QThread):
     # 定义信号用于线程间通信
     data_ready = pyqtSignal(pd.DataFrame)  # 数据准备完成信号
     error_occurred = pyqtSignal(str)  # 错误发生信号
@@ -384,7 +384,7 @@ class HistoryDataService(QThread):
         logger.debug("[SIGNAL] Emitted history_daily_amount_ready")
 
 
-class TradingDayDataService(QThread):
+class IndexTradingDayDataService(QThread):
     
     def __init__(self):
         """初始化交易日数据服务
