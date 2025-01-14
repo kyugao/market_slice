@@ -1,0 +1,9 @@
+PyQt5==5.15.9
+PyQt5-Qt5==5.15.2
+PyQt5-sip==12.12.1
+PyQtWebEngine==5.15.6
+PyQtWebEngine-Qt5==5.15.2
+pyecharts==2.0.3
+pandas==2.0.3
+loguru==0.7.0
+pyinstaller==5.13.0

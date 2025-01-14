@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1097</width>
+    <width>1057</width>
     <height>880</height>
    </rect>
   </property>
@@ -26,13 +26,13 @@
       <property name="minimumSize">
        <size>
         <width>0</width>
-        <height>40</height>
+        <height>0</height>
        </size>
       </property>
       <property name="maximumSize">
        <size>
         <width>16777215</width>
-        <height>40</height>
+        <height>0</height>
        </size>
       </property>
       <property name="autoFillBackground">
@@ -220,13 +220,6 @@
      </widget>
     </item>
     <item>
-     <widget class="Line" name="line_2">
-      <property name="orientation">
-       <enum>Qt::Horizontal</enum>
-      </property>
-     </widget>
-    </item>
-    <item>
      <widget class="QFrame" name="frame">
       <property name="frameShape">
        <enum>QFrame::StyledPanel</enum>
@@ -239,13 +232,6 @@
         <widget class="QLabel" name="label_4">
          <property name="text">
           <string>指数5分钟成交额</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="1">
-        <widget class="QLabel" name="label_2">
-         <property name="text">
-          <string>指数列表</string>
          </property>
         </widget>
        </item>
@@ -277,21 +263,21 @@
          </property>
         </widget>
        </item>
-       <item row="2" column="1">
-        <widget class="QTableView" name="tableView_2">
-         <property name="minimumSize">
-          <size>
-           <width>0</width>
-           <height>300</height>
-          </size>
+       <item row="1" column="1">
+        <spacer name="horizontalSpacer_3">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
          </property>
-         <property name="maximumSize">
+         <property name="sizeType">
+          <enum>QSizePolicy::Fixed</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
           <size>
            <width>250</width>
-           <height>500</height>
+           <height>20</height>
           </size>
          </property>
-        </widget>
+        </spacer>
        </item>
       </layout>
      </widget>
@@ -312,29 +298,6 @@
        <enum>QFrame::Raised</enum>
       </property>
       <layout class="QGridLayout" name="gridLayout_3">
-       <item row="2" column="1">
-        <widget class="QTableView" name="tableView">
-         <property name="minimumSize">
-          <size>
-           <width>0</width>
-           <height>300</height>
-          </size>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>250</width>
-           <height>500</height>
-          </size>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="1">
-        <widget class="QLabel" name="label_3">
-         <property name="text">
-          <string>概念板块列表(东财)</string>
-         </property>
-        </widget>
-       </item>
        <item row="0" column="0">
         <widget class="QLabel" name="label_5">
          <property name="text">
@@ -364,7 +327,34 @@
          </property>
         </widget>
        </item>
+       <item row="2" column="1">
+        <widget class="QWidget" name="contractListView" native="true">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>300</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>250</width>
+           <height>500</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLabel" name="label_3">
+         <property name="text">
+          <string>概念板块列表(东财)</string>
+         </property>
+        </widget>
+       </item>
       </layout>
+      <zorder>mainLeftFrame</zorder>
+      <zorder>contractListView</zorder>
+      <zorder>label_5</zorder>
+      <zorder>label_3</zorder>
      </widget>
     </item>
    </layout>

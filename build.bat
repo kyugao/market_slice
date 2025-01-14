@@ -1,0 +1,19 @@
+@echo off
+echo Checking UPX...
+where upx >nul 2>nul
+if %errorlevel% neq 0 (
+    echo UPX not found, building without compression...
+    set UPX_COMPRESSION=--noupx
+) else (
+    echo UPX found, building with compression...
+    set UPX_COMPRESSION=
+)
+
+echo Cleaning previous builds...
+rmdir /s /q build dist
+echo Building application...
+pyinstaller %UPX_COMPRESSION% build_config.spec --clean
+echo Cleaning unnecessary files...
+python clean_dist.py
+echo Build complete!
+pause

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
 from pyecharts import options as opts
@@ -9,21 +9,16 @@ from typing import Callable
 from PyQt5.QtCore import QThread, pyqtSignal
 import pandas as pd
 from loguru import logger
-from constants import REFRESH_TIME_POINT_5M, TRADING_TIME_POINT_5M
+from constants import  TRADING_TIME_POINT_5M
 from utils import five_min_kline_service as kline_service
 from utils.trading_day_util import TradingDayUtil
 
 class ContractTradingVolumeChartWidget(QtWidgets.QWidget):
     """交易量图表Widget"""
     
-    def __init__(self, parent=None, symbol=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
         logger.debug("[INIT] 开始初始化交易量图表Widget...")
-        
-        # 初始化订阅的指数列表
-        self.title = f'{symbol} 5分钟成交量图'
-        self.symbol = symbol
-        logger.info(f"使用自定义订阅列表: {self.symbol}")
         
         # 设置大小策略
         self.setSizePolicy(
@@ -41,9 +36,6 @@ class ContractTradingVolumeChartWidget(QtWidgets.QWidget):
         
         # 初始化图表
         self.init_chart()
-        
-        # 初始化数据服务
-        self.init_services()
         
         # 初始化数据属性
         self.history_data = None
@@ -74,7 +66,15 @@ class ContractTradingVolumeChartWidget(QtWidgets.QWidget):
         
         # 添加到布局
         self.layout.addWidget(self.browser)
+
+    def update_symbol(self, symbol: str, name: str):
+        """更新订阅的合约"""
+        self.symbol = symbol
+        self.name = name
+        self.title = f'{self.name} ({self.symbol}) 5分钟成交量图'
+        self.init_services()
         
+
     def init_services(self):
         """初始化数据服务"""
         logger.debug("[INIT] 开始初始化数据服务...")    
@@ -130,14 +130,13 @@ class ContractTradingVolumeChartWidget(QtWidgets.QWidget):
         
     def on_history_daily_amount_ready(self, history_data: pd.DataFrame):
         """处理历史数据就绪信号"""
-        # logger.debug(f"[SIGNAL] Received: history_contract_data_ready \n{history_data}")
+        logger.debug(f"[SIGNAL] Received: history_contract_data_ready")
         self.history_data = history_data
         self.update_chart()  # 初始显示时today_amount为空列表
         
     def on_trading_day_data_ready(self, trading_data: pd.DataFrame = []):
         """处理实时数据就绪信号"""
         logger.debug("[SIGNAL] Received: trading_day_data_ready")
-        
         self.latest_trading_day_data = trading_data['display_amount'].tolist()
         self.update_chart()
             
@@ -251,35 +250,23 @@ class ContractTradingDayDataService(QThread):
                 # 获取当前时间
                 current_time = datetime.now()
                 current_time_str = current_time.strftime("%H%M%S")
-                logger.debug(f"[THREAD] ContractTradingDayDataService 当前时间: {current_time_str}")
+                current_hour = current_time.hour
+                current_minute = current_time.minute
                 
-                # 找到下一个需要执行的时间点
-                next_time = None
-                for t in REFRESH_TIME_POINT_5M:
-                    if t > current_time_str:
-                        next_time = t
-                        break
-                
-                if next_time:
-                    # 计算需要等待的时间
-                    next_time_obj = datetime.strptime(next_time, "%H%M%S")
-                    next_time_today = current_time.replace(
-                        hour=next_time_obj.hour,
-                        minute=next_time_obj.minute,
-                        second=next_time_obj.second
-                    )
-                    wait_seconds = (next_time_today - current_time).total_seconds()
+                # 判断是否在交易时间内(9:00-15:01)
+                if (current_hour == 9 and current_minute >= 0) or \
+                   (current_hour > 9 and current_hour < 15) or \
+                   (current_hour == 15 and current_minute <= 1):
                     
-                    logger.info(f"[THREAD] ContractTradingDayDataService 等待至下一个时间点 {next_time}, 需等待 {wait_seconds} 秒")
-                    
-                    # 等待到下一个时间点
-                    if wait_seconds > 0:
-                        self.msleep(int(wait_seconds * 1000))
+                    logger.debug(f"[THREAD] ContractTradingDayDataService 当前时间: {current_time_str}")
                     
                     # 执行更新
-                    if self._is_running:  # 再次检查是否需要继续运行
-                        logger.info(f"[THREAD] 开始更新交易数据,时间点: {next_time}")
+                    if self._is_running:
+                        logger.info(f"[THREAD] 开始更新交易数据,时间点: {current_time_str}")
                         self.update_trading_data()
+                    
+                    # 等待30秒
+                    self.msleep(30 * 1000)
                 else:
                     # 如果没有下一个时间点,说明当天交易已结束
                     logger.info("[THREAD] 当天交易时间已结束")
@@ -299,11 +286,6 @@ class ContractTradingDayDataService(QThread):
             # 转换为亿元单位
             for index, row in latest_5m_trading_data.iterrows():
                 latest_5m_trading_data.loc[index, 'display_amount'] = round(float(row['amount']) / 100000000, 2)
-            # 移除未来时间的数据
-            current_time = datetime.now()
-            current_time_str = current_time.strftime('%Y-%m-%d %H:%M')
-            latest_5m_trading_data = latest_5m_trading_data[latest_5m_trading_data.index <= current_time_str]
-            logger.info(f"[UPDATE] =======更新交易数据完成(单位:亿元): \n{latest_5m_trading_data}")
             
             # 发出数据更新信号
             self.data_update_signal.emit(latest_5m_trading_data)

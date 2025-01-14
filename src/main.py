@@ -1,14 +1,12 @@
 import sys
-from PyQt5 import QtWidgets, uic, QtGui, QtCore
+from PyQt5 import QtWidgets, uic, QtCore
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
-from pyecharts import options as opts
-from pyecharts.charts import Line
-import pandas as pd
 from loguru import logger
 
-from services.contract_list_data_service import concept_list
+from utils.concept_list_data_service import ConceptDataUtil
 from widgets.contract_trading_volume_chart_widget import ContractTradingVolumeChartWidget
 from widgets.index_trading_volume_chart_widget import IndexTradingVolumeChartWidget
+from widgets.concept_list_widget import ConceptListWidget
 
 # 配置日志
 logger.add("logs/{time:YYYY-MM-DD}_app.log", 
@@ -26,7 +24,7 @@ class MyApp(QtWidgets.QMainWindow):
         logger.debug("[INIT] 开始初始化主窗口...")
         
         # 加载UI
-        uic.loadUi('main.ui', self)
+        uic.loadUi('./ui/main.ui', self)
         
         # 初始化echarts图表
         self.init_echarts()
@@ -37,9 +35,6 @@ class MyApp(QtWidgets.QMainWindow):
         # Connect resize event to update chart size
         self.headerFrame.installEventFilter(self)
         self.mainLeftFrame.installEventFilter(self)
-        
-        # Initialize line attribute
-        self.line = None
         
         logger.debug("[INIT] 主窗口初始化完成")
 
@@ -82,7 +77,8 @@ class MyApp(QtWidgets.QMainWindow):
     def init_ui_controls(self):
         """初始化UI控件"""
         logger.debug("[INIT] 开始初始化UI控件...")
-
+        
+        logger.debug("[INIT] 初始化UI指数成交额组件...")
         # 创建交易量图表Widget
         self.index_chart = IndexTradingVolumeChartWidget()
         
@@ -94,9 +90,10 @@ class MyApp(QtWidgets.QMainWindow):
         
         logger.debug("[INIT] 已将指数交易量图表添加到headerFrame")
 
-
+        
+        logger.debug("[INIT] 初始化UI概念板块成交额组件...")
         # 创建交易量图表Widget
-        self.mainLeftChart = ContractTradingVolumeChartWidget(symbol='BK1184')
+        self.mainLeftChart = ContractTradingVolumeChartWidget()
         
         # 获取headerFrame的布局
         mainLeft_layout = self.mainLeftFrame.layout()
@@ -106,35 +103,28 @@ class MyApp(QtWidgets.QMainWindow):
         
         logger.debug("[INIT] 已将个股交易量图表添加到mainLeft_layout")
 
-        # 调用concept_list方法获取概念列表
-        concept_data = concept_list()
-        logger.debug(f"[INIT] 获取到的概念列表数据：{concept_data}")
         
-        # 将数据转换为适合QTableView显示的格式
-        model = QtGui.QStandardItemModel()
-        model.setHorizontalHeaderLabels(['概念代码', '概念名称'])
-        for index, row in concept_data.iterrows():
-            model.appendRow([
-                QtGui.QStandardItem(row['concept_code']),
-                QtGui.QStandardItem(row['name']),
-            ])
+        logger.debug("[INIT] 初始化UI概念板块列表组件...")
+        # 检查布局是否存在
+        # contractListLayout = self.contractListView.layout()
+        layout2 = QtWidgets.QVBoxLayout()
+        layout2.setContentsMargins(0, 0, 0, 0)
+        layout2.setSpacing(0)
+            
+        # 创建并添加ConceptListWidget
+        self.concept_list = ConceptListWidget()
+        layout2.addWidget(self.concept_list)
         
-        # 初始化tableView并设置数据模型
-        self.tableView.setModel(model)
-        
-        logger.debug("[INIT] 已初始化tableView并设置数据模型")
+        self.contractListView.setLayout(layout2)
+        self.concept_list.concept_selected.connect(self.on_concept_selected)
+        self.on_concept_selected(ConceptDataUtil.concept_list().iloc[0]['concept_code'])
+        logger.info("[INIT] UI controls initialized")
 
-    # def eventFilter(self, source, event):
-    #     logger.debug(f"[EVENT] 事件类型: {event.type()}, {QtCore.QEvent.Resize}")
-    #     """事件过滤器，用于监听大小改变事件"""
-    #     # if event.type() == QtCore.QEvent.Resize:
-    #     #     if source is self.headerFrame:
-    #     #         self.index_chart.resizeEvent(event)
-    #     #         # self.update_header_chart_size()
-    #     #     if source is self.mainLeftFrame:
-    #     #         self.mainLeftChart.resizeEvent(event)
-    #         # self.update_mainleft_chart_size()
-    #     return super().eventFilter(source, event)
+    def on_concept_selected(self, concept_code: str):
+        """处理概念选择事件"""
+        logger.info(f"[EVENT] 选中概念: {concept_code}")
+        name = ConceptDataUtil.get_concept_name(concept_code)
+        self.mainLeftChart.update_symbol(concept_code, name)
 
 # 程序入口
 def main():
