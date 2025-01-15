@@ -54,13 +54,6 @@ class ContractTradingVolumeChartWidget(QtWidgets.QWidget):
         
         # 创建子图
         self.ax = self.fig.add_subplot(111)
-        
-    def update_symbol(self, symbol: str, name: str):
-        """更新订阅的合约"""
-        self.symbol = symbol
-        self.name = name
-        self.title = f'{self.name} ({self.symbol}) 5分钟成交量'
-        self.init_services()
 
     def create_line_chart(self):
         """创建折线图"""
@@ -109,18 +102,25 @@ class ContractTradingVolumeChartWidget(QtWidgets.QWidget):
         self.fig.tight_layout()
         self.canvas.draw()
 
+    def update_symbol(self, symbol: str, name: str):
+        """更新订阅的合约"""
+        self.symbol = symbol
+        self.name = name
+        self.title = f'{self.name} ({self.symbol}) 5分钟成交量'
+        self.init_services()
+
     def init_services(self):
         """初始化数据服务"""
         logger.debug("[INIT] 开始初始化数据服务...")    
         # 停止并清理已存在的服务
         if hasattr(self, 'history_service'):
-            self.history_service._is_running = False
             self.history_service.data_update_signal.disconnect(self.on_history_daily_amount_ready)
+            self.history_service._is_running = False
             self.history_service.quit()
             
         if hasattr(self, 'trading_day_service'):
-            self.trading_day_service._is_running = False
             self.trading_day_service.data_update_signal.disconnect(self.on_trading_day_data_ready)
+            self.trading_day_service._is_running = False
             self.trading_day_service.quit() 
             
         # 创建服务实例
@@ -153,27 +153,7 @@ class ContractTradingVolumeChartWidget(QtWidgets.QWidget):
             return
             
         # 创建图表
-        chart = self.create_line_chart(
-            # times=self.history_data.index.str[11:16].tolist(),
-            # ave5=self.history_data['AVE5'].tolist(),
-            # max5=self.history_data['MAX5'].tolist(),
-            # min5=self.history_data['MIN5'].tolist(),
-            # today_amount=self.latest_trading_day_data
-        )
-        
-        # # 设置图表大小
-        # size = self.size()
-        # chart.width = f"{size.width()}px"
-        # chart.height = f"{size.height()}px"
-        
-        # 保存图表引用
-        # self.line = chart
-        
-        # # 渲染图表
-        # chart.render("contract_trading_volume_chart.html")
-        # self.browser.load(Qt.QUrl.fromLocalFile(
-        #     str(Qt.QDir.current().absoluteFilePath("contract_trading_volume_chart.html"))
-        # ))
+        chart = self.create_line_chart()
 
 class ContractTradingDayDataService(QThread):
 
@@ -207,6 +187,11 @@ class ContractTradingDayDataService(QThread):
         self.period = "5m"  # 5分钟K线周期
         
         logger.debug("[INIT] ContractTradingDayDataService initialized")
+    
+    def update_symbol(self, symbol: str, name: str):
+        """更新订阅的合约"""
+        self.symbol = symbol
+        self.update_trading_data()
 
     def run(self):
         logger.debug("[THREAD] ContractTradingDayDataService thread started")
@@ -244,7 +229,6 @@ class ContractTradingDayDataService(QThread):
                 logger.exception("[ERROR] 执行定时任务失败")
                 self.error_occurred.emit(f"执行定时任务失败: {str(e)}")
                 break
-        self.cleanup()
 
     def update_trading_data(self):
         try:
@@ -289,6 +273,11 @@ class ContractHistoryDataService(QThread):
     def run(self):
         """线程入口函数"""
         # 初始化历史数据
+        self._init_history_data()
+    
+    def update_symbol(self, symbol: str):
+        """更新订阅的合约"""
+        self.symbol = symbol
         self._init_history_data()
 
     
