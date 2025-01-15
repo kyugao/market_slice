@@ -233,6 +233,7 @@ class ContractTradingDayDataService(QThread):
                 logger.exception("[ERROR] 执行定时任务失败")
                 self.error_occurred.emit(f"执行定时任务失败: {str(e)}")
                 break
+        self.cleanup()
 
     def update_trading_data(self):
         try:

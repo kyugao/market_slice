@@ -5,9 +5,6 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 
-# 获取pyecharts的数据文件
-pyecharts_files = collect_data_files('pyecharts')
-
 # 获取项目源码路径
 src_path = os.path.abspath('src')
 if src_path not in sys.path:
@@ -35,14 +32,10 @@ a = Analysis(
     ] + pyecharts_files,
     hiddenimports=[
         'PyQt5',
-        'PyQt5.QtWebEngineWidgets',
-        'pyecharts',
-        'pyecharts.charts',
-        'pyecharts.components',
-        'pyecharts.options',
         'pandas',
         'loguru',
         'utils',
+        'matplotlib',
         'utils.trading_day_util',
         'utils.five_min_kline_service',
         'widgets.contract_trading_volume_chart_widget',

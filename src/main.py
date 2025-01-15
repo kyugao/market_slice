@@ -1,7 +1,9 @@
 import sys
-from PyQt5 import QtWidgets, uic, QtCore
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
+from PyQt5 import QtWidgets, uic, QtCore, QtGui
+# from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
 from loguru import logger
+import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 
 from utils.concept_list_data_service import ConceptDataUtil
 from widgets.contract_trading_volume_chart_widget import ContractTradingVolumeChartWidget
@@ -24,8 +26,16 @@ class MyApp(QtWidgets.QMainWindow):
         logger.debug("[INIT] 开始初始化主窗口...")
         
         # 加载UI
-        uic.loadUi('./ui/main.ui', self)
-        
+        uic.loadUi('./src/ui/main.ui', self)
+        font_path = './src/assets/LXGWWenKai-Regular.ttf'
+        fm.fontManager.addfont(font_path)
+        font_props=fm.FontProperties(fname=font_path)
+        # 获得字体名
+        font_name=font_props.get_name()
+        # 优先使用自定义的字体，不满足的则 fallback 到 sans-serif
+        plt.rcParams['font.family']=[font_name, 'sans-serif']
+        # （可选）还可以单独设置数学公式字体，这里用 matplotlib 默认的字体
+        plt.rcParams["mathtext.fontset"]='cm'
         # 初始化echarts图表
         self.init_echarts()
         
@@ -35,42 +45,41 @@ class MyApp(QtWidgets.QMainWindow):
         # Connect resize event to update chart size
         self.headerFrame.installEventFilter(self)
         self.mainLeftFrame.installEventFilter(self)
-        
         logger.debug("[INIT] 主窗口初始化完成")
 
     def init_echarts(self):
         """初始化index_echarts图表"""
         # 创建单个WebEngine视图
-        browser = QWebEngineView()
-        browser2 = QWebEngineView()
-        self.browsers = {'headerChart': browser, "mainleftChart": browser2}
+        # browser = QWebEngineView()
+        # browser2 = QWebEngineView()
+        # self.browsers = {'headerChart': browser, "mainleftChart": browser2}
         
         # 直接创建和设置布局
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        layout.addWidget(browser)
+        # layout.addWidget(browser)
         
         # 一次性设置WebEngine属性
-        settings = browser.settings()
-        settings.setAttribute(QWebEngineSettings.ShowScrollBars, False)
+        # settings = browser.settings()
+        # settings.setAttribute(QWebEngineSettings.ShowScrollBars, False)
         
         # 设置背景色和布局
-        browser.page().setBackgroundColor(QtCore.Qt.white)
+        # browser.page().setBackgroundColor(QtCore.Qt.white)
         self.headerFrame.setLayout(layout)
         
         # 直接创建和设置布局
         layout2 = QtWidgets.QVBoxLayout()
         layout2.setContentsMargins(0, 0, 0, 0)
         layout2.setSpacing(0)
-        layout2.addWidget(browser)
+        # layout2.addWidget(browser)
         
         # 一次性设置WebEngine属性
-        settings2 = browser2.settings()
-        settings2.setAttribute(QWebEngineSettings.ShowScrollBars, False)
+        # settings2 = browser2.settings()
+        # settings2.setAttribute(QWebEngineSettings.ShowScrollBars, False)
         
         # 设置背景色和布局
-        browser2.page().setBackgroundColor(QtCore.Qt.white)
+        # browser2.page().setBackgroundColor(QtCore.Qt.white)
         self.mainLeftFrame.setLayout(layout2)
 
 
@@ -126,11 +135,32 @@ class MyApp(QtWidgets.QMainWindow):
         name = ConceptDataUtil.get_concept_name(concept_code)
         self.mainLeftChart.update_symbol(concept_code, name)
 
+    def cleanup_threads(self):
+        """清理所有运行的线程"""
+        # 停止数据服务线程
+        if hasattr(self, 'history_service'):
+            self.history_service._is_running = False
+            self.history_service.quit()
+            self.history_service.wait()
+        
+        if hasattr(self, 'trading_day_service'):
+            self.trading_day_service._is_running = False 
+            self.trading_day_service.quit()
+            self.trading_day_service.wait()
+
+    def closeEvent(self, event):
+        """处理窗口关闭事件"""
+        # 清理图表组件的线程
+        self.index_chart.cleanup_threads()
+        self.mainLeftChart.cleanup_threads()
+        event.accept()
+
 # 程序入口
 def main():
     app = QtWidgets.QApplication(sys.argv)
     window = MyApp()
     window.show()
+    window.cleanup_threads()
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
