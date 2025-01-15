@@ -112,6 +112,14 @@ class ContractTradingVolumeChartWidget(QtWidgets.QWidget):
     def init_services(self):
         """初始化数据服务"""
         logger.debug("[INIT] 开始初始化数据服务...")    
+        # 停止并清理已存在的服务
+        if hasattr(self, 'history_service'):
+            self.history_service._is_running = False
+            self.history_service.quit()
+            
+        if hasattr(self, 'trading_day_service'):
+            self.trading_day_service._is_running = False
+            self.trading_day_service.quit() 
         # 创建服务实例
         self.history_service = ContractHistoryDataService(symbol=self.symbol)
         self.trading_day_service = ContractTradingDayDataService(symbol=self.symbol)
