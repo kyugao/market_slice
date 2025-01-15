@@ -1,28 +1,24 @@
 from typing import Callable
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
-from pyecharts import options as opts
-from pyecharts.charts import Line
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 import pandas as pd
 from loguru import logger
 
 from PyQt5.QtCore import QThread, pyqtSignal
 from constants import REFRESH_TIME_POINT_5M, TRADING_TIME_POINT_5M
 from utils.five_min_kline_service import five_min_sh_amount_history, five_min_sz_amount_history, five_min_sh_amount_latest, five_min_sz_amount_latest
-import pandas as pd
 from datetime import datetime
-from loguru import logger
 from utils.trading_day_util import TradingDayUtil
 
 class IndexTradingVolumeChartWidget(QtWidgets.QWidget):
-
     symbols = ["000001.SH", "399001.SZ"]
     title = "沪深5m成交量对比"
-    """指数交易量图表Widget"""
     
     def __init__(self, parent=None):
         super().__init__(parent)
         logger.debug("[INIT] 开始初始化指数5m交易量图表...")
+        
         # 设置大小策略
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
@@ -30,7 +26,7 @@ class IndexTradingVolumeChartWidget(QtWidgets.QWidget):
         )
         
         # 设置最小尺寸
-        self.setMinimumSize(200, 150)  # 设置一个合理的最小尺寸
+        self.setMinimumSize(200, 150)
         
         # 创建布局
         self.layout = QtWidgets.QVBoxLayout(self)
@@ -40,39 +36,66 @@ class IndexTradingVolumeChartWidget(QtWidgets.QWidget):
         # 初始化图表
         self.init_chart()
         
-        
         # 初始化数据服务
         self.init_services()
         
         # 初始化数据属性
         self.history_data = None
-        self.line = None
         
         logger.debug("[INIT] 交易量图表Widget初始化完成")
         
     def init_chart(self):
         """初始化图表"""
-        # 创建WebEngine视图
-        self.browser = QWebEngineView()
+        # 创建Figure
+        self.fig = Figure(facecolor='white')
         
-        # 设置WebEngine属性
-        settings = QWebEngineSettings.defaultSettings()
-        settings.setAttribute(QWebEngineSettings.ShowScrollBars, False)
-        
-        # 设置背景色
-        self.browser.page().setBackgroundColor(QtCore.Qt.white)
-        
-        # 设置浏览器的大小策略
-        self.browser.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Expanding
-        )
-        
-        # 设置浏览器的最小尺寸
-        self.browser.setMinimumSize(200, 150)
+        # 创建画布
+        self.canvas = FigureCanvas(self.fig)
+        self.canvas.setStyleSheet("background-color:white;")
         
         # 添加到布局
-        self.layout.addWidget(self.browser)
+        self.layout.addWidget(self.canvas)
+        
+        # 创建子图
+        self.ax = self.fig.add_subplot(111)
+        
+    def create_line_chart(self, times, ave5, max5, min5, today_amount):
+        """创建折线图"""
+        # 清除现有图形
+        self.ax.clear()
+        
+        # 绘制线条
+        self.ax.plot(times, ave5, label='AVE5', color='green', alpha=0.4)
+        self.ax.plot(times, max5, label='MAX5', color='red', alpha=0.4)
+        self.ax.plot(times, min5, label='MIN5', color='blue', alpha=0.4)
+        
+        if today_amount:
+            self.ax.plot(times[:len(today_amount)], today_amount, 
+                        label='TODAY', color='black')
+        
+        # 设置标题和标签
+        self.ax.set_title(self.title)
+        self.ax.set_xlabel('时间')
+        self.ax.set_ylabel('成交额(亿元)')
+        
+        # 设置图例
+        self.ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.05),
+                      ncol=4, fancybox=True, shadow=True)
+        
+        # 旋转x轴标签
+        self.ax.tick_params(axis='x', rotation=45)
+        
+        # 自动调整布局
+        self.fig.tight_layout()
+        
+        # 重绘画布
+        self.canvas.draw()
+        
+    def resizeEvent(self, event):
+        """处理大小改变事件"""
+        super().resizeEvent(event)
+        self.fig.tight_layout()
+        self.canvas.draw()
         
     def init_services(self):
         """初始化数据服务"""
@@ -83,56 +106,19 @@ class IndexTradingVolumeChartWidget(QtWidgets.QWidget):
         # 连接信号
         self.history_service.history_daily_amount_ready.connect(self.on_history_daily_amount_ready)
         self.trading_day_service.data_update_signal.connect(self.on_trading_day_data_ready)
+        
         self.history_data = []
         self.latest_trading_day_data = []
+        
         # 启动服务
         self.history_service.start()
         self.trading_day_service.start()
-        
-    def create_line_chart(self, times, ave5, max5, min5, today_amount):
-        """创建折线图"""
-        line = (
-            Line()
-            .add_xaxis(times)
-            .add_yaxis("AVE5", ave5, color="rgba(0, 255, 0, 0.4)", is_symbol_show=False)
-            .add_yaxis("MAX5", max5, color="rgba(255, 0, 0, 0.4)", is_symbol_show=False)  
-            .add_yaxis("MIN5", min5, color="rgba(0, 0, 255, 0.4)", is_symbol_show=False)
-            .add_yaxis("TODAY", today_amount, color="black")
-            .set_global_opts(
-                title_opts=opts.TitleOpts(
-                    title=self.title,
-                    pos_left="center", 
-                    padding=[0, 0, 0, 40]
-                ),
-                xaxis_opts=opts.AxisOpts(
-                    name="时间",
-                    axislabel_opts=opts.LabelOpts()
-                ),
-                yaxis_opts=opts.AxisOpts(
-                    name="成交额(亿元)",
-                    axislabel_opts=opts.LabelOpts(formatter="{value}"),
-                    position="right"
-                ),
-                legend_opts=opts.LegendOpts(
-                    pos_top="5%",
-                    pos_left="center",
-                    orient="horizontal"
-                ),
-                tooltip_opts=opts.TooltipOpts(
-                    trigger="axis",
-                    formatter="{b} <br/> MA5: {c0}亿元 <br/>MAX5: {c1}亿元 <br/>MIN5: {c2}亿元 <br/>TODAY: {c3}亿元"
-                )
-            )
-            .set_series_opts(label_opts=opts.LabelOpts(is_show=False))
-        )
-        self.line = line
-        return line
         
     def on_history_daily_amount_ready(self, history_data: pd.DataFrame):
         """处理历史数据就绪信号"""
         logger.debug("[SIGNAL] Received: history_daily_amount_ready")
         self.history_data = history_data
-        self.update_chart()  # 初始显示时today_amount为空列表
+        self.update_chart()
         
     def on_trading_day_data_ready(self, trading_data: pd.DataFrame):
         """处理实时数据就绪信号"""
@@ -146,62 +132,13 @@ class IndexTradingVolumeChartWidget(QtWidgets.QWidget):
             return
             
         # 创建图表
-        chart = self.create_line_chart(
+        self.create_line_chart(
             times=self.history_data.index.str[11:16].tolist(),
             ave5=self.history_data['AVE5'].tolist(),
             max5=self.history_data['MAX5'].tolist(),
             min5=self.history_data['MIN5'].tolist(),
             today_amount=self.latest_trading_day_data
         )
-        
-        # 设置图表大小
-        size = self.size()
-        chart.width = f"{size.width()}px"
-        chart.height = f"{size.height()}px"
-        
-        # 保存图表引用
-        self.line = chart
-        
-        # 渲染图表
-        chart.render("temp_chart.html")
-        self.browser.load(QtCore.QUrl.fromLocalFile(
-            str(QtCore.QDir.current().absoluteFilePath("temp_chart.html"))
-        ))
-            
-    def resizeEvent(self, event):
-        """处理大小改变事件"""
-        super().resizeEvent(event)
-        self.update_chart_size()
-        
-    def update_chart_size(self):
-        """更新图表大小"""
-        if self.line is None:
-            return
-            
-        size = self.size()
-        current_width = f"{size.width()}px"
-        current_height = f"{size.height()}px"
-        
-        # 检查大小是否真的改变
-        if getattr(self.line, 'width', None) != current_width or \
-           getattr(self.line, 'height', None) != current_height:
-            
-            # logger.debug(f"[CHART] 更新图表大小: {current_width} x {current_height}")
-            
-            # 更新图表大小
-            self.line.width = current_width
-            self.line.height = current_height
-            
-            # 重新渲染图表
-            self.line.render("temp_chart.html")
-            
-            # 重新加载图表
-            self.browser.load(QtCore.QUrl.fromLocalFile(
-                str(QtCore.QDir.current().absoluteFilePath("temp_chart.html"))
-            ))
-            
-            # 更新浏览器大小
-            self.browser.setMinimumSize(size)
 
 class IndexHistoryDataService(QThread):
     # 定义信号用于线程间通信
