@@ -82,5 +82,5 @@ def five_min_amount_latest(code: str):
     last_date = result.index.str[:10].max()
     # 筛选最后一天的数据
     result = result[result.index.str[:10] == last_date]
-    logger.debug(f"[DEBUG] 获取到的五分钟K线数据: \n{result}")
+    logger.debug(f"[DEBUG] 获取到的五分钟K线数据: \n{result.tail(10)}")
     return result

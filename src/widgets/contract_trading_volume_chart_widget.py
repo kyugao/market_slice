@@ -114,25 +114,27 @@ class ContractTradingVolumeChartWidget(QtWidgets.QWidget):
         logger.debug("[INIT] 开始初始化数据服务...")    
         # 停止并清理已存在的服务
         if hasattr(self, 'history_service'):
-            self.history_service.data_update_signal.disconnect(self.on_history_daily_amount_ready)
-            self.history_service._is_running = False
-            self.history_service.quit()
+            self.history_service.update_symbol(self.symbol)
+            # self.history_service.data_update_signal.disconnect(self.on_history_daily_amount_ready)
+            # self.history_service._is_running = False
+            # self.history_service.quit()
+        else:
+            self.history_service = ContractHistoryDataService(symbol=self.symbol)
+            self.history_service.data_update_signal.connect(self.on_history_daily_amount_ready)
+            self.history_service.start()
             
         if hasattr(self, 'trading_day_service'):
-            self.trading_day_service.data_update_signal.disconnect(self.on_trading_day_data_ready)
-            self.trading_day_service._is_running = False
-            self.trading_day_service.quit() 
-            
-        # 创建服务实例
-        self.history_service = ContractHistoryDataService(symbol=self.symbol)
-        self.trading_day_service = ContractTradingDayDataService(symbol=self.symbol)
-        
-        # 连接信号
-        self.history_service.data_update_signal.connect(self.on_history_daily_amount_ready)
-        self.trading_day_service.data_update_signal.connect(self.on_trading_day_data_ready)
-        # 启动服务
-        self.history_service.start()
-        self.trading_day_service.start()
+            self.trading_day_service.update_symbol(self.symbol)
+            # self.trading_day_service.data_update_signal.disconnect(self.on_trading_day_data_ready)
+            # self.trading_day_service._is_running = False
+            # self.trading_day_service.quit() 
+        else:
+            # 创建服务实例
+            self.trading_day_service = ContractTradingDayDataService(symbol=self.symbol)
+            # 连接信号
+            self.trading_day_service.data_update_signal.connect(self.on_trading_day_data_ready)
+            # 启动服务
+            self.trading_day_service.start()
         
     def on_history_daily_amount_ready(self, history_data: pd.DataFrame):
         """处理历史数据就绪信号"""
@@ -188,7 +190,7 @@ class ContractTradingDayDataService(QThread):
         
         logger.debug("[INIT] ContractTradingDayDataService initialized")
     
-    def update_symbol(self, symbol: str, name: str):
+    def update_symbol(self, symbol: str):
         """更新订阅的合约"""
         self.symbol = symbol
         self.update_trading_data()
@@ -234,7 +236,7 @@ class ContractTradingDayDataService(QThread):
         try:
             # 获取今日交易数据
             latest_5m_trading_data = kline_service.five_min_amount_latest(self.symbol)
-            logger.info(f"[DEBUG] 获取到的最新数据: {self.symbol}\n{latest_5m_trading_data}")
+            logger.info(f"[DEBUG] 获取到的最新数据: {self.symbol}\n{latest_5m_trading_data.tail(10)}")
 
             # 转换为亿元单位
             for index, row in latest_5m_trading_data.iterrows():
@@ -242,7 +244,7 @@ class ContractTradingDayDataService(QThread):
             
             # 发出数据更新信号
             self.data_update_signal.emit(latest_5m_trading_data)
-            logger.debug(f"[SIGNAL] =======已发出数据更新信号 \n{latest_5m_trading_data}")
+            logger.debug(f"[SIGNAL] =======已发出数据更新信号 \n{latest_5m_trading_data.sample()}")
             
         except Exception as e:
             logger.exception("[ERROR] Thread execution failed")
