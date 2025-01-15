@@ -1,6 +1,5 @@
 import sys
 from PyQt5 import QtWidgets, uic, QtCore, QtGui
-# from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
 from loguru import logger
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
