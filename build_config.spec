@@ -12,7 +12,7 @@ if src_path not in sys.path:
 
 # 添加排除列表
 excludes = [
-    'matplotlib', 'scipy', 'PIL', 'tk', 'tkinter', 'PyQt5.QtBluetooth',
+    'scipy', 'tk', 'tkinter', 'PyQt5.QtBluetooth',
     'PyQt5.QtMultimedia', 'PyQt5.Qt3D', 'PyQt5.QtQuick', 'PyQt5.QtQuickWidgets',
     'PyQt5.QtSensors', 'PyQt5.QtSerialPort', 'PyQt5.QtSql', 'PyQt5.QtTest',
     'PyQt5.QtXml', 'PyQt5.QtXmlPatterns'
@@ -23,23 +23,23 @@ a = Analysis(
     pathex=[src_path],  # 添加源码路径
     binaries=[],
     datas=[
-        ('src/ui/*.ui', 'ui/'),
-        ('src/logs', 'logs/'),
+        ('assets', 'assets'),
         ('src/utils', 'utils/'),
         ('src/widgets', 'widgets/'),
-        ('src/services', 'services/'),
         ('src/constants.py', '.'),
-    ] + pyecharts_files,
+    ],
     hiddenimports=[
         'PyQt5',
         'pandas',
         'loguru',
         'utils',
         'matplotlib',
+        'matplotlib.backends.backend_qt5agg',
+        'matplotlib.backends.backend_qt5',
         'utils.trading_day_util',
         'utils.five_min_kline_service',
         'widgets.contract_trading_volume_chart_widget',
-    ] + collect_submodules('pyecharts'),
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=['runtime_hook.py'],

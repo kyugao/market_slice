@@ -2,11 +2,11 @@
 
 
 a = Analysis(
-    ['src\\main.py'],
+    ['src/main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
-    hiddenimports=[],
+    datas=[('src/utils', 'utils'), ('src/ui', 'ui'), ('src/widgets', 'widgets'), ('src/constants.py', '.')],
+    hiddenimports=['adata', 'numpy', 'matplotlib', 'matplotlib.backends.backend_qt5', 'matplotlib.backends.backend_qt5agg'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -29,10 +29,17 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=['assets/icon.ico'],
+)
+app = BUNDLE(
+    exe,
+    name='main.app',
+    icon='assets/icon.ico',
+    bundle_identifier=None,
 )

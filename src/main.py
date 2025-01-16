@@ -1,3 +1,4 @@
+import os
 import sys
 from PyQt5 import QtWidgets, uic, QtCore, QtGui
 from loguru import logger
@@ -8,6 +9,8 @@ from utils.concept_list_data_service import ConceptDataUtil
 from widgets.contract_trading_volume_chart_widget import ContractTradingVolumeChartWidget
 from widgets.index_trading_volume_chart_widget import IndexTradingVolumeChartWidget
 from widgets.concept_list_widget import ConceptListWidget
+from ui.main_ui import Ui_MainWindow
+import multiprocessing
 
 # 配置日志
 logger.add("logs/{time:YYYY-MM-DD}_app.log", 
@@ -23,18 +26,9 @@ class MyApp(QtWidgets.QMainWindow):
         super().__init__()
         
         logger.debug("[INIT] 开始初始化主窗口...")
-        
-        # 加载UI
-        uic.loadUi('./src/ui/main.ui', self)
-        font_path = './src/assets/LXGWWenKai-Regular.ttf'
-        fm.fontManager.addfont(font_path)
-        font_props=fm.FontProperties(fname=font_path)
-        # 获得字体名
-        font_name=font_props.get_name()
-        # 优先使用自定义的字体，不满足的则 fallback 到 sans-serif
-        plt.rcParams['font.family']=[font_name, 'sans-serif']
-        # （可选）还可以单独设置数学公式字体，这里用 matplotlib 默认的字体
-        plt.rcParams["mathtext.fontset"]='cm'
+
+        self.ui = Ui_MainWindow()
+        self.ui.setupUi(self)
         # 初始化echarts图表
         self.init_echarts()
         
@@ -42,8 +36,8 @@ class MyApp(QtWidgets.QMainWindow):
         self.init_ui_controls()
         
         # Connect resize event to update chart size
-        self.headerFrame.installEventFilter(self)
-        self.mainLeftFrame.installEventFilter(self)
+        self.ui.headerFrame.installEventFilter(self)
+        self.ui.mainLeftFrame.installEventFilter(self)
         logger.debug("[INIT] 主窗口初始化完成")
 
     def init_echarts(self):
@@ -65,7 +59,7 @@ class MyApp(QtWidgets.QMainWindow):
         
         # 设置背景色和布局
         # browser.page().setBackgroundColor(QtCore.Qt.white)
-        self.headerFrame.setLayout(layout)
+        self.ui.headerFrame.setLayout(layout)
         
         # 直接创建和设置布局
         layout2 = QtWidgets.QVBoxLayout()
@@ -79,7 +73,7 @@ class MyApp(QtWidgets.QMainWindow):
         
         # 设置背景色和布局
         # browser2.page().setBackgroundColor(QtCore.Qt.white)
-        self.mainLeftFrame.setLayout(layout2)
+        self.ui.mainLeftFrame.setLayout(layout2)
 
 
     def init_ui_controls(self):
@@ -91,7 +85,7 @@ class MyApp(QtWidgets.QMainWindow):
         self.index_chart = IndexTradingVolumeChartWidget()
         
         # 获取headerFrame的布局
-        header_layout = self.headerFrame.layout()
+        header_layout = self.ui.headerFrame.layout()
         
         # 将交易量图表添加到headerFrame布局中
         header_layout.addWidget(self.index_chart)
@@ -104,7 +98,7 @@ class MyApp(QtWidgets.QMainWindow):
         self.mainLeftChart = ContractTradingVolumeChartWidget()
         
         # 获取headerFrame的布局
-        mainLeft_layout = self.mainLeftFrame.layout()
+        mainLeft_layout = self.ui.mainLeftFrame.layout()
         
         # 将交易量图表添加到headerFrame布局中
         mainLeft_layout.addWidget(self.mainLeftChart)
@@ -123,7 +117,7 @@ class MyApp(QtWidgets.QMainWindow):
         self.concept_list = ConceptListWidget()
         layout2.addWidget(self.concept_list)
         
-        self.contractListView.setLayout(layout2)
+        self.ui.contractListView.setLayout(layout2)
         self.concept_list.concept_selected.connect(self.on_concept_selected)
         self.on_concept_selected(ConceptDataUtil.concept_list().iloc[0]['concept_code'])
         logger.info("[INIT] UI controls initialized")
@@ -150,11 +144,10 @@ class MyApp(QtWidgets.QMainWindow):
     def closeEvent(self, event):
         """处理窗口关闭事件"""
         # 清理图表组件的线程
-        self.index_chart.cleanup_threads()
-        self.mainLeftChart.cleanup_threads()
         event.accept()
 
 # 程序入口
+
 def main():
     app = QtWidgets.QApplication(sys.argv)
     window = MyApp()
@@ -163,4 +156,8 @@ def main():
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
+    # 优先使用自定义的字体，不满足的则 fallback 到 sans-serif
+    plt.rcParams['font.sans-serif']=['SimSong']
+    plt.rcParams['axes.unicode_minus']=False
+    multiprocessing.freeze_support()
     main()
