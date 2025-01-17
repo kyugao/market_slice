@@ -73,6 +73,8 @@ class ConceptListWidget(QWidget):
             
             # 清空现有数据
             self.model.removeRows(0, self.model.rowCount())
+            concept_data.sort_values(by='concept_code', inplace=True)
+
             
             # 添加新数据
             for index, row in concept_data.iterrows():
