@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTableView, QHeaderView
 from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from loguru import logger
-from utils.concept_list_data_service import ConceptDataUtil
+from utils.concept_list_data_service import BKUtil
 
 class ConceptListWidget(QWidget):
     """概念列表组件"""
@@ -68,7 +68,7 @@ class ConceptListWidget(QWidget):
         """加载概念数据"""
         try:
             # 获取概念列表数据
-            concept_data = ConceptDataUtil.concept_list()
+            concept_data = BKUtil.get_bk_list()
             logger.debug(f"[LOAD] 获取到的概念列表数据：\n{concept_data}")
             
             # 清空现有数据
@@ -78,8 +78,8 @@ class ConceptListWidget(QWidget):
             
             # 添加新数据
             for index, row in concept_data.iterrows():
-                code_item = QStandardItem(row['concept_code'])
-                name_item = QStandardItem(row['name'])
+                code_item = QStandardItem(row['bk_code'])
+                name_item = QStandardItem(row['bk_name'])
                 # 设置项目不可编辑
                 code_item.setEditable(False)
                 name_item.setEditable(False)

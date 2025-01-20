@@ -5,7 +5,7 @@ from loguru import logger
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 
-from utils.concept_list_data_service import ConceptDataUtil
+from utils.concept_list_data_service import BKUtil
 from widgets.contract_trading_volume_chart_widget import ContractTradingVolumeChartWidget
 from widgets.index_trading_volume_chart_widget import IndexTradingVolumeChartWidget
 from widgets.concept_list_widget import ConceptListWidget
@@ -119,13 +119,13 @@ class MyApp(QtWidgets.QMainWindow):
         
         self.ui.contractListView.setLayout(layout2)
         self.concept_list.concept_selected.connect(self.on_concept_selected)
-        self.on_concept_selected(ConceptDataUtil.concept_list().iloc[0]['concept_code'])
+        self.on_concept_selected(BKUtil.concept_list().iloc[0]['concept_code'])
         logger.info("[INIT] UI controls initialized")
 
     def on_concept_selected(self, concept_code: str):
         """处理概念选择事件"""
         logger.info(f"[EVENT] 选中概念: {concept_code}")
-        name = ConceptDataUtil.get_concept_name(concept_code)
+        name = BKUtil.get_bk_name(concept_code)
         self.mainLeftChart.update_symbol(concept_code, name)
 
     def cleanup_threads(self):

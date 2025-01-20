@@ -1,7 +1,7 @@
 from datetime import datetime
 from loguru import logger
 from typing import List
-from adata.common import requests
+import requests
 import pandas as pd
 
 class TradingDayUtil:

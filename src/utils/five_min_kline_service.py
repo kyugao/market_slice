@@ -1,6 +1,6 @@
 from loguru import logger
 import pandas as pd
-from adata.common import requests
+import requests
 from utils.trading_day_util import TradingDayUtil
 
 def five_min_sh_amount_history(days: int = 5):
