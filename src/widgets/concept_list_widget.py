@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTableView, QHeaderView
-from PyQt5.QtCore import pyqtSignal, Qt
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTableView, QHeaderView, QLineEdit
+from PyQt5.QtCore import pyqtSignal, Qt, QSortFilterProxyModel
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from loguru import logger
 from utils.concept_list_data_service import BKUtil
@@ -19,6 +19,9 @@ class ConceptListWidget(QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
         
+        # 添加搜索框
+        self.init_search_box()
+        
         # 初始化表格视图
         self.init_table_view()
         
@@ -34,6 +37,13 @@ class ConceptListWidget(QWidget):
         self.concept_selected.emit(concept_code)
         
         logger.debug("[INIT] 概念列表组件初始化完成")
+        
+    def init_search_box(self):
+        """初始化搜索框"""
+        self.search_box = QLineEdit(self)
+        self.search_box.setPlaceholderText("输入关键词搜索...")
+        self.search_box.textChanged.connect(self.filter_table)
+        self.layout.addWidget(self.search_box)
         
     def init_table_view(self):
         """初始化表格视图"""
@@ -53,37 +63,47 @@ class ConceptListWidget(QWidget):
         
         # 创建数据模型
         self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels(['概念代码', '概念名称'])
-        self.table_view.setModel(self.model)
+        self.model.setHorizontalHeaderLabels(['板块代码', '板块名称', '板块类型'])
+
+        # 创建代理模型用于过滤
+        self.proxy_model = QSortFilterProxyModel()
+        self.proxy_model.setSourceModel(self.model)
+        self.proxy_model.setFilterKeyColumn(0)  # 默认按板块名称过滤
         
-        # 连接双击信号
-        self.table_view.doubleClicked.connect(self.on_double_click)
+        self.table_view.setModel(self.proxy_model)
         # 连接选择变化信号
         self.table_view.selectionModel().selectionChanged.connect(self.on_selection_changed)
         
         # 添加到布局
         self.layout.addWidget(self.table_view)
+    
+    def filter_table(self, text):
+        """根据搜索框内容过滤表格"""
+        self.proxy_model.setFilterFixedString(text)
         
     def load_concept_data(self):
         """加载概念数据"""
         try:
             # 获取概念列表数据
             concept_data = BKUtil.get_bk_list()
+            concept_data.sort_index(ascending=True)
             logger.debug(f"[LOAD] 获取到的概念列表数据：\n{concept_data}")
             
             # 清空现有数据
             self.model.removeRows(0, self.model.rowCount())
-            concept_data.sort_values(by='concept_code', inplace=True)
+            # 对concept_data数据排序, 使用index升序
 
-            
             # 添加新数据
             for index, row in concept_data.iterrows():
-                code_item = QStandardItem(row['bk_code'])
-                name_item = QStandardItem(row['bk_name'])
-                # 设置项目不可编辑
+                code_item = QStandardItem(index)  # 使用index作为板块代码
+                name_item = QStandardItem(row['bk_name'])  # 使用bk_name作为板块名称
+                type_item = QStandardItem(str(row['bk_type']))  # 使用bk_type作为板块类型
                 code_item.setEditable(False)
                 name_item.setEditable(False)
-                self.model.appendRow([code_item, name_item])
+                type_item.setEditable(False)
+                # 设置列宽自适应内容
+                self.table_view.resizeColumnsToContents()
+                self.model.appendRow([code_item, name_item, type_item])
                 
             logger.info(f"[LOAD] 已加载 {len(concept_data)} 条概念数据")
             
@@ -91,24 +111,15 @@ class ConceptListWidget(QWidget):
             logger.exception("[ERROR] 加载概念数据失败")
             raise
             
-    def on_double_click(self, index):
-        """处理双击事件"""
-        if index.isValid():
-            # 获取选中行的concept_code
-            concept_code = self.model.data(
-                self.model.index(index.row(), 0)  # 第一列是concept_code
-            )
-            logger.info(f"[EVENT] 双击选中概念: {concept_code}")
-            # 发送选中信号
-            self.concept_selected.emit(concept_code)
-            
     def on_selection_changed(self, selected, deselected):
         """处理选择变化事件"""
         indexes = selected.indexes()
         if indexes:
-            # 获取选中行的concept_code
+            # 通过proxy_model获取选中行的concept_code
+            proxy_index = indexes[0]
+            source_index = self.proxy_model.mapToSource(proxy_index)
             concept_code = self.model.data(
-                self.model.index(indexes[0].row(), 0)  # 第一列是concept_code
+                self.model.index(source_index.row(), 0)  # 第一列是concept_code
             )
             logger.info(f"[EVENT] 选中概念: {concept_code}")
             # 发送选中信号

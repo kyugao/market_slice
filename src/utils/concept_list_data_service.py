@@ -22,6 +22,17 @@ class BKType(Enum):
     Industry = 2
     Concept = 3
 
+    def get_cn_name(self):
+        """根据枚举值返回对应的中文名称"""
+        if self.value == 1:
+            return "地域"
+        elif self.value == 2:
+            return "行业"
+        elif self.value == 3:
+            return "概念"
+        else:
+            return "未知类型"
+
 class BKUtil:
     concept_list = None
     industry_list = None
@@ -35,11 +46,11 @@ class BKUtil:
             BKUtil.industry_list = BKUtil.get_industry_list()
             BKUtil.region_list = BKUtil.get_region_list()
             # 添加概念列表
-            BKUtil.concept_list['bk_type'] = BKType.Concept
+            BKUtil.concept_list['bk_type'] = BKType.Concept.get_cn_name()
             # 添加行业列表
-            BKUtil.industry_list['bk_type'] = BKType.Industry
+            BKUtil.industry_list['bk_type'] = BKType.Industry.get_cn_name()
             # 添加地域列表
-            BKUtil.region_list['bk_type'] = BKType.Region
+            BKUtil.region_list['bk_type'] = BKType.Region.get_cn_name()
             # 合并
             BKUtil.bk_list = pd.concat([BKUtil.concept_list, BKUtil.industry_list, BKUtil.region_list])
         return BKUtil.bk_list
@@ -48,17 +59,17 @@ class BKUtil:
     def get_bk_name(bk_code: str):
         if BKUtil.bk_list is None:
             BKUtil.get_bk_list()
-        return BKUtil.bk_list[BKUtil.bk_list['bk_code'] == bk_code]['bk_name'].values[0]
+        return BKUtil.bk_list.loc[bk_code]['bk_name']
         
     # 东财地域列表
     # https://push2.eastmoney.com/api/qt/clist/get?fs=m%3A90%2Bt%3A1%2Bf%3A!50&fields=f12%2Cf13%2Cf14&pn=1&pz=500
     def get_region_list():
         if BKUtil.region_list is None:
             url = f"https://push2.eastmoney.com/api/qt/clist/get?fs=m%3A90%2Bt%3A1%2Bf%3A!50&fields=f12%2Cf13%2Cf14&pn=1&pz=100"
-            logger.debug(f"请求五分钟K线数据：{url}")
             res_json = requests.request('get', url, headers={}, proxies={}).json()
-            print(f"获取到的五分钟K线数据：{res_json}")
-            result = pd.DataFrame(item.split(',') for item in res_json['data']['diff'])
+            result = pd.DataFrame()
+            for num, row in res_json['data']['diff'].items():
+                result = pd.concat([result, pd.DataFrame(row, index=[0])], ignore_index=True)
             result.columns = ['bk_code', 'bk_prefix', 'bk_name']
             result.set_index('bk_code', inplace=True)
             BKUtil.region_list = result
@@ -69,23 +80,20 @@ class BKUtil:
     def get_concept_list():
         if BKUtil.concept_list is None:
             url = f"https://push2.eastmoney.com/api/qt/clist/get?fs=m%3A90%2Bt%3A3%2Bf%3A!50&fields=f12%2Cf13%2Cf14&pn=1&pz=600"
-            logger.debug(f"请求五分钟K线数据：{url}")
             res_json = requests.request('get', url, headers={}, proxies={}).json()
-            print(f"获取到的五分钟K线数据：{res_json}")
             
             result = pd.DataFrame()
             # res_json['data']['diff'] 数据格式参考 {'0': {'f12': 'BK0534', 'f13': 90, 'f14': '成渝特区'}, '1': {'f12': 'BK0535', 'f13': 90, 'f14': 'QFII重仓'}, '2': {'f12': 'BK0536', 'f13': 90, 'f14': '一带一路'}}
             for num, row in res_json['data']['diff'].items():
-                logger.debug(f"获取到的概念列表数据：{num}, {row}")
                 # row 是json键值对数据，参考{'f12': 'BK0577', 'f13': 90, 'f14': '核能核电'}
                 # 将row添加到result中
                 result = pd.concat([result, pd.DataFrame(row, index=[0])], ignore_index=True)
                 # result = result.append(row, ignore_index=True)
                 # result = result.append(row, ignore_index=True)
             # 创建一个result对象，以key为column，value为value
-            logger.debug(f"获取到的概念列表数据：{result}")
-            # result.columns = ['bk_code', 'bk_prefix', 'bk_name']
-            # result.set_index('bk_code', inplace=True)
+            result.columns = ['bk_code', 'bk_prefix', 'bk_name']
+            result.set_index('bk_code', inplace=True)
+            result = result.sort_index(ascending=True)  # 按bk_code升序排序
             BKUtil.concept_list = result
         return BKUtil.concept_list
 
@@ -94,13 +102,12 @@ class BKUtil:
     def get_industry_list():
         if BKUtil.industry_list is None:
             url = f"https://push2.eastmoney.com/api/qt/clist/get?fs=m%3A90%2Bt%3A2%2Bf%3A!50&fields=f12%2Cf13%2Cf14&pn=1&pz=500"
-            logger.debug(f"请求五分钟K线数据：{url}")
             res_json = requests.request('get', url, headers={}, proxies={}).json()
-            print(f"获取到的五分钟K线数据：{res_json}")
-            result = pd.DataFrame(item.split(',') for item in res_json['data']['diff'])
+            
+            result = pd.DataFrame()
+            for num, row in res_json['data']['diff'].items():
+                result = pd.concat([result, pd.DataFrame(row, index=[0])], ignore_index=True)
             result.columns = ['bk_code', 'bk_prefix', 'bk_name']
             result.set_index('bk_code', inplace=True)
             BKUtil.industry_list = result
         return BKUtil.industry_list
-
-

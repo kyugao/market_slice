@@ -340,8 +340,6 @@ class IndexTradingDayDataService(QThread):
                 self.error_occurred.emit(f"执行定时任务失败: {str(e)}")
                 break
         
-        self.cleanup()
-    
     def update_trading_data(self):
         try:
             sh_latest_amount = five_min_sh_amount_latest()

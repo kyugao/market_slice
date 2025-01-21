@@ -119,7 +119,7 @@ class MyApp(QtWidgets.QMainWindow):
         
         self.ui.contractListView.setLayout(layout2)
         self.concept_list.concept_selected.connect(self.on_concept_selected)
-        self.on_concept_selected(BKUtil.concept_list().iloc[0]['concept_code'])
+        self.on_concept_selected(BKUtil.bk_list.index[0])
         logger.info("[INIT] UI controls initialized")
 
     def on_concept_selected(self, concept_code: str):
@@ -157,7 +157,7 @@ def main():
 
 if __name__ == '__main__':
     # 优先使用自定义的字体，不满足的则 fallback 到 sans-serif
-    plt.rcParams['font.sans-serif']=['SimSong']
-    plt.rcParams['axes.unicode_minus']=False
+    plt.rcParams['font.sans-serif']=['SimSun', 'Microsoft YaHei', 'SimHei', 'FangSong', 'KaiTi']  # 添加常用中文字体
+    plt.rcParams['axes.unicode_minus']=False  # 解决负号显示问题
     multiprocessing.freeze_support()
     main()
