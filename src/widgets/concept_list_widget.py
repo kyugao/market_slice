@@ -1,5 +1,7 @@
+from datetime import datetime
+import time
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTableView, QHeaderView, QLineEdit
-from PyQt5.QtCore import pyqtSignal, Qt, QSortFilterProxyModel
+from PyQt5.QtCore import pyqtSignal, Qt, QSortFilterProxyModel, QTimer
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from loguru import logger
 from utils.concept_list_data_service import BKUtil
@@ -110,7 +112,8 @@ class ConceptListWidget(QWidget):
         except Exception as e:
             logger.exception("[ERROR] 加载概念数据失败")
             raise
-            
+    
+
     def on_selection_changed(self, selected, deselected):
         """处理选择变化事件"""
         indexes = selected.indexes()
@@ -122,9 +125,38 @@ class ConceptListWidget(QWidget):
                 self.model.index(source_index.row(), 0)  # 第一列是concept_code
             )
             logger.info(f"[EVENT] 选中概念: {concept_code}")
-            # 发送选中信号
-            self.concept_selected.emit(concept_code)
+
+            # 使用QTimer实现异步延迟
+            QTimer.singleShot(500, lambda: self.handle_selection_async(concept_code))
+
+    def handle_selection_async(self, concept_code):
+        """异步处理选中逻辑"""
+        try:
+            current_timetag = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+            logger.debug(f"[TIMESTAMP] 异步处理时间: {current_timetag}")
             
+            # 检查是否仍然选中相同的行
+            indexes = self.table_view.selectedIndexes()
+            if indexes:
+                proxy_index = indexes[0]
+                source_index = self.proxy_model.mapToSource(proxy_index)
+                current_code = self.model.data(
+                    self.model.index(source_index.row(), 0)
+                )
+                
+                if current_code == concept_code:
+                    logger.debug(f"[TIMESTAMP] 选中项一致，发送信号: {concept_code}")
+                    self.concept_selected.emit(concept_code)
+                else:
+                    logger.debug(f"[TIMESTAMP] 选中项已改变，跳过发送: {current_code} != {concept_code}")
+            else:
+                logger.debug("[TIMESTAMP] 当前无选中项，跳过发送")
+                
+        except Exception as e:
+            logger.exception(f"[ERROR] 异步处理选中逻辑时出错: {str(e)}")
+    
+
+
     def get_selected_concept(self) -> str:
         """获取当前选中的概念代码"""
         indexes = self.table_view.selectedIndexes()
