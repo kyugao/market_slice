@@ -244,7 +244,7 @@ class IndexHistoryDataService(QThread):
                     ave5.append(round(totalAmount / len(groups), 2))  # 保留两位小数
                     max5.append(round(maxAmount, 2))
                     min5.append(round(minAmount, 2))
-                    logger.debug(f"index: {index}, ave5: {ave5[index]}, max5: {max5[index]}, min5: {min5[index]}")
+                    # logger.debug(f"index: {index}, ave5: {ave5[index]}, max5: {max5[index]}, min5: {min5[index]}")
                 
                 # 添加计算结果到数据框
                 daily5MinKline['AVE5'] = ave5
@@ -356,7 +356,7 @@ class IndexTradingDayDataService(QThread):
             
             # 计算sum_amount
             output_df['sum_amount'] = output_df['sh_amount'] + output_df['sz_amount']
-            logger.info(f"output_df:\n{output_df}")
+            logger.info(f"output_df:\n{output_df.sample()}")
 
             self.emit(output_df)
             logger.debug(f"[SIGNAL] 已发出数据更新信号")

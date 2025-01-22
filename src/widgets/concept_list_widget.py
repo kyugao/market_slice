@@ -127,7 +127,7 @@ class ConceptListWidget(QWidget):
             logger.info(f"[EVENT] 选中概念: {concept_code}")
 
             # 使用QTimer实现异步延迟
-            QTimer.singleShot(500, lambda: self.handle_selection_async(concept_code))
+            QTimer.singleShot(300, lambda: self.handle_selection_async(concept_code))
 
     def handle_selection_async(self, concept_code):
         """异步处理选中逻辑"""

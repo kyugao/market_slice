@@ -157,7 +157,14 @@ def main():
 
 if __name__ == '__main__':
     # 优先使用自定义的字体，不满足的则 fallback 到 sans-serif
-    plt.rcParams['font.sans-serif']=['SimSun', 'Microsoft YaHei', 'SimHei', 'FangSong', 'KaiTi']  # 添加常用中文字体
+    font_path = '../assets/LXGWWenKai-Regular.ttf'
+    fm.fontManager.addfont(font_path)
+    font_props=fm.FontProperties(fname=font_path)
+    # 获得字体名
+    font_name=font_props.get_name()
+    # 优先使用自定义的字体，不满足的则 fallback 到 sans-serif
+    plt.rcParams['font.family']=[font_name, 'sans-serif']
     plt.rcParams['axes.unicode_minus']=False  # 解决负号显示问题
+
     multiprocessing.freeze_support()
     main()
