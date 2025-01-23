@@ -1,12 +1,11 @@
 from datetime import datetime
-import time
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTableView, QHeaderView, QLineEdit
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTableView, QHeaderView, QLineEdit, QCheckBox, QHBoxLayout
 from PyQt5.QtCore import pyqtSignal, Qt, QSortFilterProxyModel, QTimer
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from loguru import logger
-from utils.concept_list_data_service import BKUtil
+from utils.contract_list_data_service import ContractUtil
 
-class ConceptListWidget(QWidget):
+class ContractListWidget(QWidget):
     """概念列表组件"""
     
     # 定义双击信号，发送选中的concept_code
@@ -47,6 +46,36 @@ class ConceptListWidget(QWidget):
         self.search_box.textChanged.connect(self.filter_table)
         self.layout.addWidget(self.search_box)
         
+        # 创建复选框布局
+        self.checkbox_layout = QHBoxLayout()
+        
+        # 创建并添加复选框
+        self.industry_checkbox = QCheckBox("行业", self)
+        self.concept_checkbox = QCheckBox("概念", self)
+        self.area_checkbox = QCheckBox("地区", self)
+        self.stock_checkbox = QCheckBox("个股", self)
+        
+        # 默认选中所有复选框
+        self.industry_checkbox.setChecked(True)
+        self.concept_checkbox.setChecked(True)
+        self.area_checkbox.setChecked(True)
+        self.stock_checkbox.setChecked(True)
+        
+        # 连接状态改变信号
+        self.industry_checkbox.stateChanged.connect(self.filter_table)
+        self.concept_checkbox.stateChanged.connect(self.filter_table)
+        self.area_checkbox.stateChanged.connect(self.filter_table)
+        self.stock_checkbox.stateChanged.connect(self.filter_table)
+        
+        # 添加到布局
+        self.checkbox_layout.addWidget(self.industry_checkbox)
+        self.checkbox_layout.addWidget(self.concept_checkbox)
+        self.checkbox_layout.addWidget(self.area_checkbox)
+        self.checkbox_layout.addWidget(self.stock_checkbox)
+        
+        # 将复选框布局添加到主布局
+        self.layout.addLayout(self.checkbox_layout)
+        
     def init_table_view(self):
         """初始化表格视图"""
         self.table_view = QTableView(self)
@@ -65,7 +94,7 @@ class ConceptListWidget(QWidget):
         
         # 创建数据模型
         self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels(['板块代码', '板块名称', '板块类型'])
+        self.model.setHorizontalHeaderLabels(['代码', '名称', '类型'])
 
         # 创建代理模型用于过滤
         self.proxy_model = QSortFilterProxyModel()
@@ -81,25 +110,26 @@ class ConceptListWidget(QWidget):
     
     def filter_table(self, text):
         """根据搜索框内容过滤表格"""
+        logger.debug(f"filter test {self.concept_checkbox.status}")
         self.proxy_model.setFilterFixedString(text)
         
     def load_concept_data(self):
         """加载概念数据"""
         try:
             # 获取概念列表数据
-            concept_data = BKUtil.get_bk_list()
-            concept_data.sort_index(ascending=True)
-            logger.debug(f"[LOAD] 获取到的概念列表数据：\n{concept_data}")
+            bk_data = ContractUtil.get_contract_data()
+            bk_data.sort_index(ascending=True)
+            logger.debug(f"[LOAD] 获取到的概念列表数据：\n{bk_data.sample()}")
             
             # 清空现有数据
             self.model.removeRows(0, self.model.rowCount())
             # 对concept_data数据排序, 使用index升序
 
             # 添加新数据
-            for index, row in concept_data.iterrows():
+            for index, row in bk_data.iterrows():
                 code_item = QStandardItem(index)  # 使用index作为板块代码
-                name_item = QStandardItem(row['bk_name'])  # 使用bk_name作为板块名称
-                type_item = QStandardItem(str(row['bk_type']))  # 使用bk_type作为板块类型
+                name_item = QStandardItem(row['name'])  # 使用bk_name作为板块名称
+                type_item = QStandardItem(str(row['contract_type']))  # 使用bk_type作为板块类型
                 code_item.setEditable(False)
                 name_item.setEditable(False)
                 type_item.setEditable(False)
@@ -107,13 +137,12 @@ class ConceptListWidget(QWidget):
                 self.table_view.resizeColumnsToContents()
                 self.model.appendRow([code_item, name_item, type_item])
                 
-            logger.info(f"[LOAD] 已加载 {len(concept_data)} 条概念数据")
+            logger.info(f"[LOAD] 已加载 {len(bk_data)} 条概念数据")
             
         except Exception as e:
             logger.exception("[ERROR] 加载概念数据失败")
             raise
     
-
     def on_selection_changed(self, selected, deselected):
         """处理选择变化事件"""
         indexes = selected.indexes()
@@ -155,8 +184,6 @@ class ConceptListWidget(QWidget):
         except Exception as e:
             logger.exception(f"[ERROR] 异步处理选中逻辑时出错: {str(e)}")
     
-
-
     def get_selected_concept(self) -> str:
         """获取当前选中的概念代码"""
         indexes = self.table_view.selectedIndexes()

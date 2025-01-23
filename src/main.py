@@ -5,12 +5,11 @@ from loguru import logger
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 
-from utils.concept_list_data_service import BKUtil
+from utils.contract_list_data_service import ContractUtil
 from widgets.contract_trading_volume_chart_widget import ContractTradingVolumeChartWidget
 from widgets.index_trading_volume_chart_widget import IndexTradingVolumeChartWidget
-from widgets.concept_list_widget import ConceptListWidget
+from widgets.contract_list_widget import ContractListWidget
 from ui.main_ui import Ui_MainWindow
-import multiprocessing
 
 # 配置日志
 logger.add("logs/{time:YYYY-MM-DD}_app.log", 
@@ -114,18 +113,18 @@ class MyApp(QtWidgets.QMainWindow):
         layout2.setSpacing(0)
             
         # 创建并添加ConceptListWidget
-        self.concept_list = ConceptListWidget()
+        self.concept_list = ContractListWidget()
         layout2.addWidget(self.concept_list)
         
         self.ui.contractListView.setLayout(layout2)
         self.concept_list.concept_selected.connect(self.on_concept_selected)
-        self.on_concept_selected(BKUtil.bk_list.index[0])
+        self.on_concept_selected(ContractUtil.contract_list.index[0])
         logger.info("[INIT] UI controls initialized")
 
     def on_concept_selected(self, concept_code: str):
         """处理概念选择事件"""
         logger.info(f"[EVENT] 选中概念: {concept_code}")
-        name = BKUtil.get_bk_name(concept_code)
+        name = ContractUtil.get_bk_name(concept_code)
         self.mainLeftChart.update_symbol(concept_code, name)
 
     def cleanup_threads(self):
@@ -157,7 +156,7 @@ def main():
 
 if __name__ == '__main__':
     # 优先使用自定义的字体，不满足的则 fallback 到 sans-serif
-    font_path = '../assets/LXGWWenKai-Regular.ttf'
+    font_path = './assets/LXGWWenKai-Regular.ttf'
     fm.fontManager.addfont(font_path)
     font_props=fm.FontProperties(fname=font_path)
     # 获得字体名
@@ -166,5 +165,4 @@ if __name__ == '__main__':
     plt.rcParams['font.family']=[font_name, 'sans-serif']
     plt.rcParams['axes.unicode_minus']=False  # 解决负号显示问题
 
-    multiprocessing.freeze_support()
     main()
