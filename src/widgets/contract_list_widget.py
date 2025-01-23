@@ -1,5 +1,5 @@
 from datetime import datetime
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTableView, QHeaderView, QLineEdit, QCheckBox, QHBoxLayout
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTableView, QHeaderView, QLineEdit, QCheckBox, QHBoxLayout, QPushButton, QLabel
 from PyQt5.QtCore import pyqtSignal, Qt, QSortFilterProxyModel, QTimer
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from loguru import logger
@@ -10,6 +10,11 @@ class ContractListWidget(QWidget):
     
     # 定义双击信号，发送选中的concept_code
     concept_selected = pyqtSignal(str)
+    
+    # 分页相关属性
+    PAGE_SIZE = 100
+    current_page = 0
+    all_data = None
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -22,6 +27,9 @@ class ContractListWidget(QWidget):
         
         # 添加搜索框
         self.init_search_box()
+        
+        # 添加分页控件
+        self.init_pagination_controls()
         
         # 初始化表格视图
         self.init_table_view()
@@ -113,31 +121,83 @@ class ContractListWidget(QWidget):
         logger.debug(f"filter test {self.concept_checkbox.status}")
         self.proxy_model.setFilterFixedString(text)
         
+    def init_pagination_controls(self):
+        """初始化分页控件"""
+        self.pagination_layout = QHBoxLayout()
+        
+        # 上一页按钮
+        self.prev_button = QPushButton("上一页")
+        self.prev_button.clicked.connect(self.prev_page)
+        self.prev_button.setEnabled(False)
+        
+        # 下一页按钮
+        self.next_button = QPushButton("下一页")
+        self.next_button.clicked.connect(self.next_page)
+        self.next_button.setEnabled(False)
+        
+        # 页码显示
+        self.page_label = QLabel("第 1 页")
+        
+        self.pagination_layout.addWidget(self.prev_button)
+        self.pagination_layout.addWidget(self.page_label)
+        self.pagination_layout.addWidget(self.next_button)
+        
+        self.layout.addLayout(self.pagination_layout)
+        
+    def prev_page(self):
+        """切换到上一页"""
+        if self.current_page > 0:
+            self.current_page -= 1
+            self.update_table()
+            
+    def next_page(self):
+        """切换到下一页"""
+        if (self.current_page + 1) * self.PAGE_SIZE < len(self.all_data):
+            self.current_page += 1
+            self.update_table()
+            
+    def update_table(self):
+        """更新表格显示当前页数据"""
+        start = self.current_page * self.PAGE_SIZE
+        end = start + self.PAGE_SIZE
+        page_data = self.all_data.iloc[start:end]
+        
+        # 清空现有数据
+        self.model.removeRows(0, self.model.rowCount())
+        
+        # 添加新数据
+        for index, row in page_data.iterrows():
+            code_item = QStandardItem(index)
+            name_item = QStandardItem(row['name'])
+            type_item = QStandardItem(str(row['contract_type']))
+            code_item.setEditable(False)
+            name_item.setEditable(False)
+            type_item.setEditable(False)
+            self.model.appendRow([code_item, name_item, type_item])
+            
+        # 更新页码显示
+        self.page_label.setText(f"第 {self.current_page + 1} 页")
+        
+        # 更新按钮状态
+        self.prev_button.setEnabled(self.current_page > 0)
+        self.next_button.setEnabled((self.current_page + 1) * self.PAGE_SIZE < len(self.all_data))
+        
+        # 设置列宽自适应内容
+        self.table_view.resizeColumnsToContents()
+        
     def load_concept_data(self):
         """加载概念数据"""
         try:
-            # 获取概念列表数据
-            bk_data = ContractUtil.get_contract_data()
-            bk_data.sort_index(ascending=True)
-            logger.debug(f"[LOAD] 获取到的概念列表数据：\n{bk_data.sample()}")
+            # 获取所有数据
+            self.all_data = ContractUtil.get_contract_data()
+            self.all_data.sort_index(ascending=True)
+            logger.debug(f"[LOAD] 获取到的概念列表数据：\n{self.all_data.sample()}")
             
-            # 清空现有数据
-            self.model.removeRows(0, self.model.rowCount())
-            # 对concept_data数据排序, 使用index升序
-
-            # 添加新数据
-            for index, row in bk_data.iterrows():
-                code_item = QStandardItem(index)  # 使用index作为板块代码
-                name_item = QStandardItem(row['name'])  # 使用bk_name作为板块名称
-                type_item = QStandardItem(str(row['contract_type']))  # 使用bk_type作为板块类型
-                code_item.setEditable(False)
-                name_item.setEditable(False)
-                type_item.setEditable(False)
-                # 设置列宽自适应内容
-                self.table_view.resizeColumnsToContents()
-                self.model.appendRow([code_item, name_item, type_item])
-                
-            logger.info(f"[LOAD] 已加载 {len(bk_data)} 条概念数据")
+            # 初始化分页状态
+            self.current_page = 0
+            self.update_table()
+            
+            logger.info(f"[LOAD] 已加载 {len(self.all_data)} 条概念数据")
             
         except Exception as e:
             logger.exception("[ERROR] 加载概念数据失败")

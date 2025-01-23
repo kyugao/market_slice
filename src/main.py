@@ -124,7 +124,7 @@ class MyApp(QtWidgets.QMainWindow):
     def on_concept_selected(self, concept_code: str):
         """处理概念选择事件"""
         logger.info(f"[EVENT] 选中概念: {concept_code}")
-        name = ContractUtil.get_bk_name(concept_code)
+        name = ContractUtil.get_contract_name(concept_code)
         self.mainLeftChart.update_symbol(concept_code, name)
 
     def cleanup_threads(self):
