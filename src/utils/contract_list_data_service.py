@@ -82,6 +82,12 @@ class ContractUtil:
             ContractUtil.get_contract_data()
         return ContractUtil.contract_list.loc[bk_code]['name']
     
+    @staticmethod
+    def get_contract_prefix(bk_code: str):
+        if ContractUtil.contract_list is None:
+            ContractUtil.get_contract_data()
+        return ContractUtil.contract_list.loc[bk_code]['prefix']
+    
     # 东财股票数据列表
     # https://push2.eastmoney.com/api/qt/clist/get?fs=m%3A0%2Bt%3A6%2Cm%3A0%2Bt%3A80%2Cm%3A1%2Bt%3A2%2Cm%3A1%2Bt%3A23%2Cm%3A0%2Bt%3A81%2Bs%3A2048&fields=f12%2Cf13%2Cf14&pn=1&pz=8000
     def get_stock_list():

@@ -102,8 +102,9 @@ class ContractTradingVolumeChartWidget(QtWidgets.QWidget):
         self.fig.tight_layout()
         self.canvas.draw()
 
-    def update_symbol(self, symbol: str, name: str):
+    def update_symbol(self, symbol: str, prefix: str, name: str):
         """更新订阅的合约"""
+        self.prefix = prefix
         self.symbol = symbol
         self.name = name
         self.title = f'{self.name} ({self.symbol}) 5分钟成交量'
@@ -114,23 +115,23 @@ class ContractTradingVolumeChartWidget(QtWidgets.QWidget):
         logger.debug("[INIT] 开始初始化数据服务...")    
         # 停止并清理已存在的服务
         if hasattr(self, 'history_service'):
-            self.history_service.update_symbol(self.symbol)
+            self.history_service.update_symbol(self.symbol, self.prefix)
             # self.history_service.data_update_signal.disconnect(self.on_history_daily_amount_ready)
             # self.history_service._is_running = False
             # self.history_service.quit()
         else:
-            self.history_service = ContractHistoryDataService(symbol=self.symbol)
+            self.history_service = ContractHistoryDataService()
             self.history_service.data_update_signal.connect(self.on_history_daily_amount_ready)
             self.history_service.start()
             
         if hasattr(self, 'trading_day_service'):
-            self.trading_day_service.update_symbol(self.symbol)
+            self.trading_day_service.update_symbol(self.symbol, self.prefix)
             # self.trading_day_service.data_update_signal.disconnect(self.on_trading_day_data_ready)
             # self.trading_day_service._is_running = False
             # self.trading_day_service.quit() 
         else:
             # 创建服务实例
-            self.trading_day_service = ContractTradingDayDataService(symbol=self.symbol)
+            self.trading_day_service = ContractTradingDayDataService(symbol=self.symbol, prefix=self.prefix)
             # 连接信号
             self.trading_day_service.data_update_signal.connect(self.on_trading_day_data_ready)
             # 启动服务
@@ -162,7 +163,7 @@ class ContractTradingDayDataService(QThread):
     error_occurred = pyqtSignal(str)
     data_update_signal = pyqtSignal(pd.DataFrame)
 
-    def __init__(self, symbol:str=None):
+    def __init__(self, symbol:str=None, prefix:str=None):
         """初始化交易日数据服务"""
         super().__init__()
         logger.debug("[INIT] ContractTradingDayDataService initializing...")
@@ -190,14 +191,15 @@ class ContractTradingDayDataService(QThread):
         
         logger.debug("[INIT] ContractTradingDayDataService initialized")
     
-    def update_symbol(self, symbol: str):
+    def update_symbol(self, symbol: str, prefix: str):
         """更新订阅的合约"""
         self.symbol = symbol
+        self.prefix = prefix
         self.update_trading_data()
 
     def run(self):
         logger.debug("[THREAD] ContractTradingDayDataService thread started")
-        self.update_trading_data()
+        # self.update_trading_data()
         logger.debug("[THREAD] ContractTradingDayDataService retrieve trading data at first time")
         
         while self._is_running:
@@ -235,7 +237,7 @@ class ContractTradingDayDataService(QThread):
     def update_trading_data(self):
         try:
             # 获取今日交易数据
-            latest_5m_trading_data = kline_service.five_min_amount_latest(self.symbol)
+            latest_5m_trading_data = kline_service.five_min_amount_latest(self.symbol, self.prefix)
             logger.info(f"[DEBUG] 获取到的最新数据: {self.symbol}\n{latest_5m_trading_data.tail(10)}")
 
             # 转换为亿元单位
@@ -252,21 +254,12 @@ class ContractTradingDayDataService(QThread):
 
 class ContractHistoryDataService(QThread):
     history_init_finished = pyqtSignal(dict)  # 历史数据初始化完成信号
-    def __init__(self, symbol:str=None):
+    def __init__(self):
         super().__init__()
         logger.info("开始初始化 ContractHistoryDataService...")
         
         # 线程控制标志
         self._is_running = True
-        
-        # 初始化订阅的指数列表
-        self.default_symbol = '600900'  # 概念板块或个股
-        if symbol:
-            self.symbol = symbol
-            logger.info(f"使用自定义订阅: {self.symbol}")
-        else:
-            self.symbol = self.default_symbol
-            logger.info(f"使用默认订阅列表: {self.symbol}")
         
         logger.info("已连接历史数据初始化完成信号")
         logger.info("ContractHistoryDataService 初始化完成")
@@ -274,19 +267,21 @@ class ContractHistoryDataService(QThread):
 
     def run(self):
         """线程入口函数"""
-        # 初始化历史数据
+        self.symbol = "600900"
+        self.prefix = "1"
         self._init_history_data()
     
-    def update_symbol(self, symbol: str):
+    def update_symbol(self, symbol: str, prefix: str):
         """更新订阅的合约"""
         self.symbol = symbol
+        self.prefix = prefix
         self._init_history_data()
 
     
     def _init_history_data(self):
         """初始化历史数据"""
-        logger.info("开始初始化历史数据...")
-        self.history_data = kline_service.five_min_amount_history(self.symbol)
+        logger.info(f"开始初始化历史数据...{self.prefix}.{self.symbol}")
+        self.history_data = kline_service.five_min_amount_history(self.symbol, self.prefix)
         # self.history_data dataframe sample
         # <class 'pandas.core.frame.DataFrame'>
         #                   volume            amount

@@ -61,7 +61,7 @@ class ContractListWidget(QWidget):
         self.industry_checkbox = QCheckBox("行业", self)
         self.concept_checkbox = QCheckBox("概念", self)
         self.area_checkbox = QCheckBox("地区", self)
-        self.stock_checkbox = QCheckBox("个股", self)
+        self.stock_checkbox = QCheckBox("股票", self)
         
         # 默认选中所有复选框
         self.industry_checkbox.setChecked(True)
@@ -108,6 +108,7 @@ class ContractListWidget(QWidget):
         self.proxy_model = QSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
         self.proxy_model.setFilterKeyColumn(0)  # 默认按板块名称过滤
+        self.proxy_model.filterAcceptsRow = self.filterAcceptsRow
         
         self.table_view.setModel(self.proxy_model)
         # 连接选择变化信号
@@ -117,9 +118,55 @@ class ContractListWidget(QWidget):
         self.layout.addWidget(self.table_view)
     
     def filter_table(self, text):
-        """根据搜索框内容过滤表格"""
-        logger.debug(f"filter test {self.concept_checkbox.status}")
-        self.proxy_model.setFilterFixedString(text)
+        """根据搜索框内容和复选框状态过滤表格"""
+        # 获取当前过滤条件
+        search_text = self.search_box.text().lower()
+        type_filters = {
+            '行业': self.industry_checkbox.isChecked(),
+            '概念': self.concept_checkbox.isChecked(),
+            '地域': self.area_checkbox.isChecked(),
+            '股票': self.stock_checkbox.isChecked()
+        }
+        
+        # 过滤全部数据并存储
+        self.filtered_data = self.all_data[
+            (self.all_data['contract_type'].map(type_filters.get)) &
+            (self.all_data.index.str.lower().str.contains(search_text))
+        ]
+        
+        # 更新当前页为第一页
+        self.current_page = 0
+        
+        # 更新表格显示
+        self.update_table(self.filtered_data)
+        
+    def filterAcceptsRow(self, source_row, source_parent):
+        logger.debug(f"[FILTER] 过滤行: {source_row}")
+        """自定义过滤逻辑"""
+        # 获取当前行的数据
+        index = self.model.index(source_row, 0, source_parent)
+        name = self.model.data(index)
+        type_index = self.model.index(source_row, 2, source_parent)
+        contract_type = self.model.data(type_index)
+        
+        # 检查复选框状态
+        type_filters = {
+            '行业': self.industry_checkbox.isChecked(),
+            '概念': self.concept_checkbox.isChecked(),
+            '地域': self.area_checkbox.isChecked(),
+            '股票': self.stock_checkbox.isChecked()
+        }
+        
+        # 检查类型过滤
+        if not type_filters.get(contract_type, True):
+            return False
+            
+        # 检查文本过滤
+        search_text = self.search_box.text().lower()
+        if search_text:
+            return search_text in name.lower()
+            
+        return True
         
     def init_pagination_controls(self):
         """初始化分页控件"""
@@ -148,19 +195,23 @@ class ContractListWidget(QWidget):
         """切换到上一页"""
         if self.current_page > 0:
             self.current_page -= 1
-            self.update_table()
+            self.update_table(self.filtered_data if hasattr(self, 'filtered_data') else self.all_data)
             
     def next_page(self):
         """切换到下一页"""
-        if (self.current_page + 1) * self.PAGE_SIZE < len(self.all_data):
+        data = self.filtered_data if hasattr(self, 'filtered_data') else self.all_data
+        if (self.current_page + 1) * self.PAGE_SIZE < len(data):
             self.current_page += 1
-            self.update_table()
+            self.update_table(data)
             
-    def update_table(self):
+    def update_table(self, data=None):
         """更新表格显示当前页数据"""
+        if data is None:
+            data = self.all_data
+            
         start = self.current_page * self.PAGE_SIZE
         end = start + self.PAGE_SIZE
-        page_data = self.all_data.iloc[start:end]
+        page_data = data.iloc[start:end]
         
         # 清空现有数据
         self.model.removeRows(0, self.model.rowCount())

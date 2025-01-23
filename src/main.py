@@ -125,7 +125,8 @@ class MyApp(QtWidgets.QMainWindow):
         """处理概念选择事件"""
         logger.info(f"[EVENT] 选中概念: {concept_code}")
         name = ContractUtil.get_contract_name(concept_code)
-        self.mainLeftChart.update_symbol(concept_code, name)
+        prefix = ContractUtil.get_contract_prefix(concept_code)
+        self.mainLeftChart.update_symbol(concept_code, prefix, name)
 
     def cleanup_threads(self):
         """清理所有运行的线程"""
