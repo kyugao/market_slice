@@ -43,6 +43,7 @@ class ContractUtil:
     contract_list = None
     lock = Lock()
 
+    @staticmethod
     def init_data():
         ContractUtil.concept_list = ContractUtil.get_concept_list()
         ContractUtil.industry_list = ContractUtil.get_industry_list()

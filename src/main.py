@@ -1,3 +1,4 @@
+import multiprocessing
 import os
 import sys
 from PyQt5 import QtWidgets, uic, QtCore, QtGui
@@ -157,13 +158,17 @@ def main():
 
 if __name__ == '__main__':
     # 优先使用自定义的字体，不满足的则 fallback 到 sans-serif
-    font_path = './assets/LXGWWenKai-Regular.ttf'
-    fm.fontManager.addfont(font_path)
-    font_props=fm.FontProperties(fname=font_path)
-    # 获得字体名
-    font_name=font_props.get_name()
+    # font_path = './assets/LXGWWenKai-Regular.ttf'
+    # fm.fontManager.addfont(font_path)
+    # font_props=fm.FontProperties(fname=font_path)
+    # # 获得字体名
+    # font_name=font_props.get_name()
     # 优先使用自定义的字体，不满足的则 fallback 到 sans-serif
-    plt.rcParams['font.family']=[font_name, 'sans-serif']
-    plt.rcParams['axes.unicode_minus']=False  # 解决负号显示问题
+    plt.rcParams['font.family'] = 'sans-serif'
+    plt.rcParams['font.sans-serif'] = ['PingFang SC', 'Arial Unicode MS']  # 先尝试系统字体，然后是备用字体
+    plt.rcParams['axes.unicode_minus'] = False  # 正确显示负号
+
     ContractUtil.init_data()
+    multiprocessing.freeze_support()
     main()
+
