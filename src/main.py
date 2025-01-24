@@ -165,5 +165,5 @@ if __name__ == '__main__':
     # 优先使用自定义的字体，不满足的则 fallback 到 sans-serif
     plt.rcParams['font.family']=[font_name, 'sans-serif']
     plt.rcParams['axes.unicode_minus']=False  # 解决负号显示问题
-
+    ContractUtil.init_data()
     main()

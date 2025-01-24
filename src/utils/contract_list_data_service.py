@@ -2,6 +2,7 @@ from enum import Enum
 from loguru import logger
 import pandas as pd
 import requests
+from threading import Lock
 # concept_list result sample
 # 	concept_code	index_code	name	source
 # 0	BK0623	BK0623	海洋经济	东方财富
@@ -40,41 +41,28 @@ class ContractUtil:
     region_list = None
     stock_list = None
     contract_list = None
+    lock = Lock()
+
+    def init_data():
+        ContractUtil.concept_list = ContractUtil.get_concept_list()
+        ContractUtil.industry_list = ContractUtil.get_industry_list()
+        ContractUtil.region_list = ContractUtil.get_region_list()
+        ContractUtil.stock_list = ContractUtil.get_stock_list()
+        # 添加概念列表
+        ContractUtil.concept_list['contract_type'] = ContractType.Concept.get_cn_name()
+        # 添加行业列表
+        ContractUtil.industry_list['contract_type'] = ContractType.Industry.get_cn_name()
+        # 添加地域列表
+        ContractUtil.region_list['contract_type'] = ContractType.Region.get_cn_name()
+        # 添加地域列表
+        ContractUtil.stock_list['contract_type'] = ContractType.Stock.get_cn_name()
+        # 合并
+        ContractUtil.contract_list = pd.concat([ContractUtil.concept_list, ContractUtil.industry_list, ContractUtil.region_list, ContractUtil.stock_list])
 
     @staticmethod
     def get_contract_data():
-        if ContractUtil.contract_list is None:
-            ContractUtil.concept_list = ContractUtil.get_concept_list()
-            ContractUtil.industry_list = ContractUtil.get_industry_list()
-            ContractUtil.region_list = ContractUtil.get_region_list()
-            ContractUtil.stock_list = ContractUtil.get_stock_list()
-            # 添加概念列表
-            ContractUtil.concept_list['contract_type'] = ContractType.Concept.get_cn_name()
-            # 添加行业列表
-            ContractUtil.industry_list['contract_type'] = ContractType.Industry.get_cn_name()
-            # 添加地域列表
-            ContractUtil.region_list['contract_type'] = ContractType.Region.get_cn_name()
-            # 添加地域列表
-            ContractUtil.stock_list['contract_type'] = ContractType.Stock.get_cn_name()
-            # 合并
-            ContractUtil.contract_list = pd.concat([ContractUtil.concept_list, ContractUtil.industry_list, ContractUtil.region_list, ContractUtil.stock_list])
+        # 下面if逻辑执行时，为多线程同步调用，只有一个线程能进入
         return ContractUtil.contract_list
-
-    @staticmethod
-    def get_bk_list():
-        if ContractUtil.bk_list is None:
-            ContractUtil.concept_list = ContractUtil.get_concept_list()
-            ContractUtil.industry_list = ContractUtil.get_industry_list()
-            ContractUtil.region_list = ContractUtil.get_region_list()
-            # 添加概念列表
-            ContractUtil.concept_list['contract_type'] = ContractType.Concept.get_cn_name()
-            # 添加行业列表
-            ContractUtil.industry_list['contract_type'] = ContractType.Industry.get_cn_name()
-            # 添加地域列表
-            ContractUtil.region_list['contract_type'] = ContractType.Region.get_cn_name()
-            # 合并
-            ContractUtil.bk_list = pd.concat([ContractUtil.concept_list, ContractUtil.industry_list, ContractUtil.region_list])
-        return ContractUtil.bk_list
     
     @staticmethod
     def get_contract_name(bk_code: str):
@@ -91,64 +79,56 @@ class ContractUtil:
     # 东财股票数据列表
     # https://push2.eastmoney.com/api/qt/clist/get?fs=m%3A0%2Bt%3A6%2Cm%3A0%2Bt%3A80%2Cm%3A1%2Bt%3A2%2Cm%3A1%2Bt%3A23%2Cm%3A0%2Bt%3A81%2Bs%3A2048&fields=f12%2Cf13%2Cf14&pn=1&pz=8000
     def get_stock_list():
-        if ContractUtil.stock_list is None:
-            url = "https://push2.eastmoney.com/api/qt/clist/get?fs=m%3A0%2Bt%3A6%2Cm%3A0%2Bt%3A80%2Cm%3A1%2Bt%3A2%2Cm%3A1%2Bt%3A23%2Cm%3A0%2Bt%3A81%2Bs%3A2048&fields=f12%2Cf13%2Cf14&pn=1&pz=8000"
-            res_json = requests.request('get', url, headers={}, proxies={}).json()
-            result = pd.DataFrame()
-            for num, row in res_json['data']['diff'].items():
-                result = pd.concat([result, pd.DataFrame(row, index=[0])], ignore_index=True)
-            result.columns = ['code', 'prefix', 'name']
-            result.set_index('code', inplace=True)
-            ContractUtil.region_list = result
-        return ContractUtil.region_list
+        url = "https://push2.eastmoney.com/api/qt/clist/get?fs=m%3A0%2Bt%3A6%2Cm%3A0%2Bt%3A80%2Cm%3A1%2Bt%3A2%2Cm%3A1%2Bt%3A23%2Cm%3A0%2Bt%3A81%2Bs%3A2048&fields=f12%2Cf13%2Cf14&pn=1&pz=8000"
+        res_json = requests.request('get', url, headers={}, proxies={}).json()
+        result = pd.DataFrame()
+        for num, row in res_json['data']['diff'].items():
+            result = pd.concat([result, pd.DataFrame(row, index=[0])], ignore_index=True)
+        result.columns = ['code', 'prefix', 'name']
+        result.set_index('code', inplace=True)
+        return result
         
     # 东财地域列表
     # https://push2.eastmoney.com/api/qt/clist/get?fs=m%3A90%2Bt%3A1%2Bf%3A!50&fields=f12%2Cf13%2Cf14&pn=1&pz=500
     def get_region_list():
-        if ContractUtil.region_list is None:
-            url = f"https://push2.eastmoney.com/api/qt/clist/get?fs=m%3A90%2Bt%3A1%2Bf%3A!50&fields=f12%2Cf13%2Cf14&pn=1&pz=100"
-            res_json = requests.request('get', url, headers={}, proxies={}).json()
-            result = pd.DataFrame()
-            for num, row in res_json['data']['diff'].items():
-                result = pd.concat([result, pd.DataFrame(row, index=[0])], ignore_index=True)
-            result.columns = ['code', 'prefix', 'name']
-            result.set_index('code', inplace=True)
-            ContractUtil.region_list = result
-        return ContractUtil.region_list
+        url = f"https://push2.eastmoney.com/api/qt/clist/get?fs=m%3A90%2Bt%3A1%2Bf%3A!50&fields=f12%2Cf13%2Cf14&pn=1&pz=100"
+        res_json = requests.request('get', url, headers={}, proxies={}).json()
+        result = pd.DataFrame()
+        for num, row in res_json['data']['diff'].items():
+            result = pd.concat([result, pd.DataFrame(row, index=[0])], ignore_index=True)
+        result.columns = ['code', 'prefix', 'name']
+        result.set_index('code', inplace=True)
+        return result
     
     # 东财概念列表
     # https://push2.eastmoney.com/api/qt/clist/get?fs=m%3A90%2Bt%3A3%2Bf%3A!50&fields=f12%2Cf13%2Cf14&pn=2&pz=20
     def get_concept_list():
-        if ContractUtil.concept_list is None:
-            url = f"https://push2.eastmoney.com/api/qt/clist/get?fs=m%3A90%2Bt%3A3%2Bf%3A!50&fields=f12%2Cf13%2Cf14&pn=1&pz=600"
-            res_json = requests.request('get', url, headers={}, proxies={}).json()
-            
-            result = pd.DataFrame()
-            # res_json['data']['diff'] 数据格式参考 {'0': {'f12': 'BK0534', 'f13': 90, 'f14': '成渝特区'}, '1': {'f12': 'BK0535', 'f13': 90, 'f14': 'QFII重仓'}, '2': {'f12': 'BK0536', 'f13': 90, 'f14': '一带一路'}}
-            for num, row in res_json['data']['diff'].items():
-                # row 是json键值对数据，参考{'f12': 'BK0577', 'f13': 90, 'f14': '核能核电'}
-                # 将row添加到result中
-                result = pd.concat([result, pd.DataFrame(row, index=[0])], ignore_index=True)
-                # result = result.append(row, ignore_index=True)
-                # result = result.append(row, ignore_index=True)
-            # 创建一个result对象，以key为column，value为value
-            result.columns = ['code', 'prefix', 'name']
-            result.set_index('code', inplace=True)
-            result = result.sort_index(ascending=True)  # 按bk_code升序排序
-            ContractUtil.concept_list = result
-        return ContractUtil.concept_list
+        url = f"https://push2.eastmoney.com/api/qt/clist/get?fs=m%3A90%2Bt%3A3%2Bf%3A!50&fields=f12%2Cf13%2Cf14&pn=1&pz=600"
+        res_json = requests.request('get', url, headers={}, proxies={}).json()
+        
+        result = pd.DataFrame()
+        # res_json['data']['diff'] 数据格式参考 {'0': {'f12': 'BK0534', 'f13': 90, 'f14': '成渝特区'}, '1': {'f12': 'BK0535', 'f13': 90, 'f14': 'QFII重仓'}, '2': {'f12': 'BK0536', 'f13': 90, 'f14': '一带一路'}}
+        for num, row in res_json['data']['diff'].items():
+            # row 是json键值对数据，参考{'f12': 'BK0577', 'f13': 90, 'f14': '核能核电'}
+            # 将row添加到result中
+            result = pd.concat([result, pd.DataFrame(row, index=[0])], ignore_index=True)
+            # result = result.append(row, ignore_index=True)
+            # result = result.append(row, ignore_index=True)
+        # 创建一个result对象，以key为column，value为value
+        result.columns = ['code', 'prefix', 'name']
+        result.set_index('code', inplace=True)
+        result = result.sort_index(ascending=True)  # 按bk_code升序排序
+        return result
 
     # 东财行业列表
     # https://push2.eastmoney.com/api/qt/clist/get?fs=m%3A90%2Bt%3A2%2Bf%3A!50&fields=f12%2Cf13%2Cf14&pn=1&pz=500
     def get_industry_list():
-        if ContractUtil.industry_list is None:
-            url = f"https://push2.eastmoney.com/api/qt/clist/get?fs=m%3A90%2Bt%3A2%2Bf%3A!50&fields=f12%2Cf13%2Cf14&pn=1&pz=500"
-            res_json = requests.request('get', url, headers={}, proxies={}).json()
-            
-            result = pd.DataFrame()
-            for num, row in res_json['data']['diff'].items():
-                result = pd.concat([result, pd.DataFrame(row, index=[0])], ignore_index=True)
-            result.columns = ['code', 'prefix', 'name']
-            result.set_index('code', inplace=True)
-            ContractUtil.industry_list = result
-        return ContractUtil.industry_list
+        url = f"https://push2.eastmoney.com/api/qt/clist/get?fs=m%3A90%2Bt%3A2%2Bf%3A!50&fields=f12%2Cf13%2Cf14&pn=1&pz=500"
+        res_json = requests.request('get', url, headers={}, proxies={}).json()
+        
+        result = pd.DataFrame()
+        for num, row in res_json['data']['diff'].items():
+            result = pd.concat([result, pd.DataFrame(row, index=[0])], ignore_index=True)
+        result.columns = ['code', 'prefix', 'name']
+        result.set_index('code', inplace=True)
+        return result
