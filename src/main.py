@@ -35,8 +35,8 @@ class MyApp(QtWidgets.QMainWindow):
         self.init_ui_controls()
         
         # Connect resize event to update chart size
-        self.ui.headerFrame.installEventFilter(self)
-        self.ui.mainLeftFrame.installEventFilter(self)
+        self.ui.indexChartWidget.installEventFilter(self)
+        self.ui.contractChartWidget.installEventFilter(self)
         logger.debug("[INIT] 主窗口初始化完成")
 
     def init_echarts(self):
@@ -58,7 +58,7 @@ class MyApp(QtWidgets.QMainWindow):
         
         # 设置背景色和布局
         # browser.page().setBackgroundColor(QtCore.Qt.white)
-        self.ui.headerFrame.setLayout(layout)
+        self.ui.indexChartWidget.setLayout(layout)
         
         # 直接创建和设置布局
         layout2 = QtWidgets.QVBoxLayout()
@@ -72,7 +72,7 @@ class MyApp(QtWidgets.QMainWindow):
         
         # 设置背景色和布局
         # browser2.page().setBackgroundColor(QtCore.Qt.white)
-        self.ui.mainLeftFrame.setLayout(layout2)
+        self.ui.contractChartWidget.setLayout(layout2)
 
 
     def init_ui_controls(self):
@@ -84,7 +84,7 @@ class MyApp(QtWidgets.QMainWindow):
         self.index_chart = IndexTradingVolumeChartWidget()
         
         # 获取headerFrame的布局
-        header_layout = self.ui.headerFrame.layout()
+        header_layout = self.ui.indexChartWidget.layout()
         
         # 将交易量图表添加到headerFrame布局中
         header_layout.addWidget(self.index_chart)
@@ -97,7 +97,7 @@ class MyApp(QtWidgets.QMainWindow):
         self.mainLeftChart = ContractTradingVolumeChartWidget()
         
         # 获取headerFrame的布局
-        mainLeft_layout = self.ui.mainLeftFrame.layout()
+        mainLeft_layout = self.ui.contractChartWidget.layout()
         
         # 将交易量图表添加到headerFrame布局中
         mainLeft_layout.addWidget(self.mainLeftChart)
@@ -116,7 +116,7 @@ class MyApp(QtWidgets.QMainWindow):
         self.concept_list = ContractListWidget()
         layout2.addWidget(self.concept_list)
         
-        self.ui.contractListView.setLayout(layout2)
+        self.ui.contractTableView.setLayout(layout2)
         self.concept_list.concept_selected.connect(self.on_concept_selected)
         self.on_concept_selected(ContractUtil.contract_list.index[0])
         logger.info("[INIT] UI controls initialized")
